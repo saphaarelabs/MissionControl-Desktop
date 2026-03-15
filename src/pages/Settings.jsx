@@ -107,11 +107,17 @@ const ModelsTab = () => {
     const [error, setError] = useState('');
     const [status, setStatus] = useState('');
 
+    const isCloudflareGatewayBaseUrl = (baseUrl) =>
+        String(baseUrl || '').toLowerCase().includes('gateway.ai.cloudflare.com');
+
     const normalizeCustomProviderModelId = (providerKey, rawId) => {
         const trimmed = String(rawId || '').trim();
         if (!trimmed) return '';
         const firstSlash = trimmed.indexOf('/');
-        const suffix = firstSlash >= 0 ? trimmed.slice(firstSlash + 1) : trimmed;
+        let suffix = firstSlash >= 0 ? trimmed.slice(firstSlash + 1) : trimmed;
+        if (isCloudflareGatewayBaseUrl(customBaseUrl) && suffix.startsWith('@cf/')) {
+            suffix = `workers-ai/${suffix}`;
+        }
         return `${providerKey}/${suffix}`;
     };
 

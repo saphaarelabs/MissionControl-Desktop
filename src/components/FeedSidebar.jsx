@@ -80,15 +80,46 @@ const FeedSidebar = ({ agentId = 'main' }) => {
         setMessages(prev => [...prev, { role: 'user', content: userMsg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
         setSending(true);
 
-        // Simulate assistant response
-        setTimeout(() => {
+        try {
+            const response = await apiAuthFetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: userMsg,
+                    agentId,
+                    stream: false
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'Request failed');
+                throw new Error(errorText || 'Request failed');
+            }
+
+            const data = await response.json().catch(() => ({}));
+            const content =
+                data?.choices?.[0]?.message?.content
+                ?? data?.message?.content
+                ?? data?.content
+                ?? 'No response content received.';
+
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: `I've received your request: "${userMsg}". I'm analyzing the mission parameters now.`,
+                content: String(content).trim() || 'No response content received.',
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }]);
+        } catch (error) {
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `Request failed: ${error.message || 'Unknown error'}`,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }]);
+        } finally {
             setSending(false);
-        }, 1000);
+        }
     };
 
     return (
