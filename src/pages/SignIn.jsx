@@ -23,8 +23,10 @@ const SignInPage = () => {
     const [error, setError] = useState('');
     const [info, setInfo] = useState('');
 
-    // Don't auto-redirect here - let the SSO callback handle routing
-    // This was causing new Google users to skip onboarding
+    useEffect(() => {
+        if (!userLoaded || !isSignedIn) return;
+        navigate('/sso-callback?oauth_complete=1&intent=sign-in', { replace: true });
+    }, [isSignedIn, navigate, userLoaded]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -55,6 +57,10 @@ const SignInPage = () => {
 
     const handleGoogle = async () => {
         if (!isLoaded) return;
+        if (userLoaded && isSignedIn) {
+            navigate('/sso-callback?oauth_complete=1&intent=sign-in', { replace: true });
+            return;
+        }
         setLoading(true);
         setError('');
         setInfo('');
@@ -72,7 +78,15 @@ const SignInPage = () => {
                 setInfo('We opened sign-in in your browser. Once you finish, the desktop app will pick up the session automatically.');
             }
         } catch (err) {
+            const errorCode = err?.errors?.[0]?.code;
             const message = err?.errors?.[0]?.message || err?.message || 'Failed to start Google sign-in';
+            if (
+                errorCode === 'session_exists' ||
+                message.toLowerCase().includes('session already exists')
+            ) {
+                navigate('/sso-callback?oauth_complete=1&intent=sign-in', { replace: true });
+                return;
+            }
             setError(message);
         } finally {
             setLoading(false);

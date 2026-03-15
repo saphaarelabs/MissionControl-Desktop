@@ -25,8 +25,10 @@ const SignUpPage = () => {
     const [error, setError] = useState('');
     const [info, setInfo] = useState('');
 
-    // Don't auto-redirect here - let the SSO callback handle routing
-    // This ensures consistent behavior for both OAuth and email/password signup
+    useEffect(() => {
+        if (!userLoaded || !isSignedIn) return;
+        navigate('/sso-callback?oauth_complete=1&intent=sign-up', { replace: true });
+    }, [isSignedIn, navigate, userLoaded]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -74,6 +76,10 @@ const SignUpPage = () => {
 
     const handleGoogle = async () => {
         if (!isLoaded) return;
+        if (userLoaded && isSignedIn) {
+            navigate('/sso-callback?oauth_complete=1&intent=sign-up', { replace: true });
+            return;
+        }
         setLoading(true);
         setError('');
         setInfo('');
@@ -95,6 +101,13 @@ const SignUpPage = () => {
             // Check if error is due to existing account
             const errorCode = err?.errors?.[0]?.code;
             const message = err?.errors?.[0]?.message || err?.message || 'Failed to start Google sign-up';
+            if (
+                errorCode === 'session_exists' ||
+                message.toLowerCase().includes('session already exists')
+            ) {
+                navigate('/sso-callback?oauth_complete=1&intent=sign-up', { replace: true });
+                return;
+            }
             
             // If account already exists, redirect to sign-in
             if (errorCode === 'form_identifier_exists' || 
