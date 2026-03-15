@@ -1,0 +1,535 @@
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,600,700,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Satoshi", ui-monospace, SFMono-Regular;
+}
+
+@layer base {
+  :root {
+    --ink-900: #0f172a;
+    --ink-700: #334155;
+    --ink-500: #64748b;
+    --paper-0: #ffffff;
+    --paper-50: #f8fafc;
+    --paper-100: #f1f5f9;
+    --accent-600: #2563eb;
+    --accent-700: #1d4ed8;
+    --accent-100: #dbeafe;
+    --warm-100: #fff7ed;
+    --emerald-100: #dcfce7;
+    font-family: var(--font-sans);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    font-family: "Satoshi", sans-serif !important;
+  }
+
+  body {
+    color: var(--ink-900);
+    background: var(--paper-50);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Force font inheritance for all common elements and components */
+  *,
+  input,
+  button,
+  textarea,
+  select,
+  pre,
+  code {
+    font-family: "Satoshi", sans-serif !important;
+  }
+
+  a,
+  button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    text-wrap: balance;
+  }
+
+  /* Hide scrollbars globally but keep functionality */
+  * {
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE/Edge */
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari, etc. */
+  }
+}
+
+@layer base {
+  html.desktop-shell,
+  body.desktop-shell {
+    background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.07), transparent 24%),
+      #f4f7fb;
+  }
+
+  body.desktop-shell {
+    overscroll-behavior: none;
+  }
+
+  body.desktop-shell #root {
+    isolation: isolate;
+  }
+
+  body.desktop-shell .desktop-window-header {
+    -webkit-app-region: drag;
+  }
+
+  body.desktop-shell .desktop-no-drag,
+  body.desktop-shell .desktop-no-drag * {
+    -webkit-app-region: no-drag;
+  }
+
+  html.desktop-shell[data-platform="darwin"] body.desktop-shell .desktop-window-header {
+    padding-left: 4.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  html.desktop-shell[data-platform="darwin"] body.desktop-shell .desktop-window-header {
+    padding-left: 0;
+  }
+}
+
+/* Hide Clerk "Secured by" / "Development mode" footer blocks. */
+.cl-footer,
+.cl-footerAction,
+.cl-footerActionLink,
+.cl-cardFooter,
+.cl-userButtonPopoverFooter,
+.cl-userProfileFooter,
+.cl-badge,
+.cl-badgeIcon,
+.cl-badgeText,
+.cl-developmentModeBadge {
+  display: none !important;
+}
+
+/* Fallback: if Clerk changes class names, hide their branding links in auth/profile UIs. */
+.cl-rootBox a[href*="clerk.com"],
+.cl-card a[href*="clerk.com"] {
+  display: none !important;
+}
+
+.cl-rootBox a[href*="clerk.dev"],
+.cl-card a[href*="clerk.dev"] {
+  display: none !important;
+}
+
+/* Marquee Animations */
+@keyframes scroll-left {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(calc(-100% - 24px));
+  }
+}
+
+@keyframes scroll-right {
+  from {
+    transform: translateX(calc(-100% - 24px));
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-marquee-left {
+  animation: scroll-left 40s linear infinite;
+}
+
+.animate-marquee-right {
+  animation: scroll-right 40s linear infinite;
+}
+
+.pause-marquee:hover .animate-marquee-left,
+.pause-marquee:hover .animate-marquee-right {
+  animation-play-state: paused;
+}
+
+.marquee-mask {
+  mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+}
+
+.use-case-card {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.use-case-card:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.1);
+}
+
+/* Command Center Dashboard Preview */
+.command-center {
+  margin-top: 128px;
+}
+
+.command-center-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.command-center-header .section-title {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: #0f172a;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+  .command-center-header .section-title {
+    font-size: 3rem;
+    line-height: 1;
+  }
+}
+
+.command-center-header .section-subtitle {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.mission-control-preview {
+  max-width: 1200px;
+  margin: 40px auto;
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.05);
+}
+
+.mc-header {
+  padding: 24px 40px;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mc-stats {
+  display: flex;
+  gap: 32px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.stat .label {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+}
+
+.stat .value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.mc-browser-frame {
+  display: flex;
+  height: 480px;
+}
+
+/* Sidebar */
+.mc-sidebar {
+  width: 72px;
+  background: #ffffff;
+  border-right: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0;
+  gap: 20px;
+}
+
+.sidebar-item {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.sidebar-item.active {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+/* Dashboard Content */
+.mc-content {
+  flex: 1;
+  padding: 32px;
+  background: #fff;
+}
+
+.mc-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+}
+
+.mc-card {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.mc-card h4 {
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 1.5rem;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.activity-item strong {
+  color: #0f172a;
+}
+
+/* Progress Bar */
+.progress-bar-container {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  margin: 12px 0 8px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #2563eb;
+  transition: width 2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Dots */
+.activity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.activity-dot.lead {
+  background: #f59e0b;
+}
+
+.activity-dot.writer {
+  background: #ec4899;
+}
+
+.activity-dot.researcher {
+  background: #3b82f6;
+}
+
+.activity-dot.dev {
+  background: #10b981;
+}
+
+/* Comparison Section */
+.comparison {
+  padding: 60px 0;
+  text-align: center;
+}
+
+.comparison-cards {
+  display: flex;
+  max-width: 1100px;
+  margin: 40px auto;
+  align-items: stretch;
+  position: relative;
+}
+
+.comp-card {
+  background: #fff;
+  border: 1px solid #f1f5f9;
+  padding: 40px;
+  border-radius: 20px;
+  text-align: left;
+  transition: all 0.4s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Manual Way (Left Card) */
+.manual-way {
+  flex: 1;
+  z-index: 1;
+  border-right: none;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  padding-right: 80px;
+  /* Space for overlap */
+}
+
+/* Magic Way (Right Card - Overlapping) */
+.magic-way {
+  flex: 1.1;
+  z-index: 2;
+  margin-left: -60px;
+  /* Creates the overlap */
+  border: 3px solid #0070f3;
+  box-shadow: 0 20px 50px rgba(0, 112, 243, 0.15);
+}
+
+.card-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 24px;
+}
+
+.card-tag.magic {
+  color: #0070f3;
+  background: rgba(0, 112, 243, 0.08);
+  padding: 6px 14px;
+  border-radius: 100px;
+  display: inline-block;
+}
+
+/* Pain Points List */
+.pain-points {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 30px;
+}
+
+.pain-points li {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.93rem;
+  color: #64748b;
+}
+
+.step-time {
+  font-weight: 700;
+  color: #111;
+}
+
+.card-footer {
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+.total-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #ef4444;
+}
+
+.magic-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+}
+
+/* The "1 min" Highlight */
+.speed-glance {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.time-value {
+  font-size: 6rem;
+  font-weight: 950;
+  line-height: 1;
+  background: linear-gradient(135deg, #0070f3, #60a5fa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.time-unit {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0070f3;
+}
+
+/* Warning pill */
+.non-tech-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(239, 68, 68, 0.05);
+  padding: 12px 24px;
+  border-radius: 100px;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+@media (max-width: 768px) {
+  .comparison-cards {
+    flex-direction: column;
+  }
+
+  .manual-way {
+    border-radius: 20px;
+    padding-right: 40px;
+    margin-bottom: 20px;
+  }
+
+  .magic-way {
+    margin-left: 0;
+    margin-top: -40px;
+  }
+}
