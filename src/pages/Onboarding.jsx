@@ -1,122 +1,142 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUser, useClerk } from '@clerk/clerk-react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { apiAuthFetch } from '../lib/apiBase';
+import { useClerk, useUser } from '@clerk/clerk-react';
+import { motion } from 'framer-motion';
 import {
-    User as UserIcon,
-    Phone,
-    Bot,
-    Settings as SettingsIcon,
-    CheckCircle2,
-    ChevronRight,
     ArrowLeft,
-    MessageSquare,
-    Send,
-    Sparkles,
-    Zap,
-    Globe,
+    ArrowRight,
+    Bot,
+    CheckCircle2,
+    KeyRound,
     LogOut,
-    // Database
+    MessageSquare,
+    ShieldCheck,
+    Sparkles,
+    User as UserIcon,
+    Zap,
 } from 'lucide-react';
+import { apiAuthFetch } from '../lib/apiBase';
 
-const steps = [
-    { id: 'bio', title: 'Basic Info' },
-    { id: 'llm', title: 'AI Configuration' },
-    { id: 'channels', title: 'Channel Setup' },
-    { id: 'verify', title: 'Verification' },
+const STEPS = [
+    {
+        id: 'identity',
+        title: 'Workspace profile',
+        description: 'Set the identity that appears across your control plane and agent workspace.',
+    },
+    {
+        id: 'model-access',
+        title: 'Model access',
+        description: 'Choose whether to start with the managed default stack or add your own provider credentials.',
+    },
+    {
+        id: 'channels',
+        title: 'Channels',
+        description: 'Choose the communication surfaces you expect to wire in first.',
+    },
+    {
+        id: 'review',
+        title: 'Review and launch',
+        description: 'Confirm the deployment details before we provision your dedicated instance.',
+    },
 ];
 
-const providers = [
-    {
-        id: 'openai',
-        name: 'OpenAI',
-        models: [
-            { id: 'gpt-5.3', name: 'ChatGPT 5.3 (Flagship)' },
-            { id: 'gpt-4o', name: 'GPT-4o (Omni)' },
-            { id: 'o1-preview', name: 'OpenAI o1-preview' }
-        ]
-    },
-    {
-        id: 'perplexity',
-        name: 'Perplexity',
-        models: [
-            { id: 'sonar-reasoning', name: 'Sonar Reasoning' },
-            { id: 'sonar-pro', name: 'Sonar Pro' },
-            { id: 'sonar', name: 'Sonar Standard' }
-        ]
-    },
+const PROVIDERS = [
     {
         id: 'anthropic',
-        name: 'Claude',
-        models: [
-            { id: 'claude-3-5-sonnet-latest', name: 'Claude 3.5 Sonnet' },
-            { id: 'claude-3-5-haiku-latest', name: 'Claude 3.5 Haiku' },
-            { id: 'claude-3-opus-latest', name: 'Claude 3 Opus' }
-        ]
+        label: 'Anthropic',
+        note: 'Claude models with API-key auth',
+        keyPlaceholder: 'sk-ant-...',
+        modelPlaceholder: 'claude-sonnet-4-5',
     },
     {
-        id: 'x',
-        name: 'Grok',
-        models: [
-            { id: 'grok-2', name: 'Grok-2' },
-            { id: 'grok-2-128k', name: 'Grok-2 (Long Context)' },
-            { id: 'grok-beta', name: 'Grok Beta' }
-        ]
+        id: 'openai',
+        label: 'OpenAI',
+        note: 'GPT models with API-key auth',
+        keyPlaceholder: 'sk-...',
+        modelPlaceholder: 'gpt-4o',
     },
     {
         id: 'google',
-        name: 'Gemini',
-        models: [
-            { id: 'gemini-3-pro', name: 'Gemini 3 Pro' },
-            { id: 'gemini-3-flash', name: 'Gemini 3 Flash' },
-            { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash' }
-        ]
+        label: 'Google',
+        note: 'Gemini models with API-key auth',
+        keyPlaceholder: 'AIza...',
+        modelPlaceholder: 'gemini-2.5-pro',
     },
     {
         id: 'deepseek',
-        name: 'Deepseek',
-        models: [
-            { id: 'deepseek-v3', name: 'Deepseek V3' },
-            { id: 'deepseek-chat', name: 'Deepseek Chat' },
-            { id: 'deepseek-reasoner', name: 'Deepseek Reasoner' }
-        ]
-    },
-    {
-        id: 'moonshot',
-        name: 'Kimi',
-        models: [
-            { id: 'moonshot-v1-128k', name: 'Kimi V1 (128k)' },
-            { id: 'moonshot-v1-32k', name: 'Kimi V1 (32k)' }
-        ]
-    },
-    {
-        id: 'alibaba',
-        name: 'Qwen',
-        models: [
-            { id: 'qwen-max', name: 'Qwen Max (2.5)' },
-            { id: 'qwen-plus', name: 'Qwen Plus' },
-            { id: 'qwen-turbo', name: 'Qwen Turbo' }
-        ]
+        label: 'DeepSeek',
+        note: 'DeepSeek models with API-key auth',
+        keyPlaceholder: 'sk-...',
+        modelPlaceholder: 'deepseek-chat',
     },
 ];
 
-export default function Onboarding() {
-    const { user, isLoaded } = useUser();
-    const { signOut } = useClerk();
-    const navigate = useNavigate();
-    const [currentStep, setCurrentStep] = useState(0);
-    const [direction, setDirection] = useState(0);
-    const [loading, setLoading] = useState(false);
+const CHANNELS = [
+    {
+        id: 'whatsapp',
+        title: 'WhatsApp',
+        description: 'Prepare the workspace for WhatsApp handoff and credential setup after launch.',
+        accent: 'from-emerald-500/20 to-emerald-100',
+    },
+    {
+        id: 'telegram',
+        title: 'Telegram',
+        description: 'Pre-stage the workspace for Telegram bot configuration from Settings.',
+        accent: 'from-sky-500/20 to-sky-100',
+    },
+];
 
-    // Form State
+function deriveUsername(user) {
+    if (user?.username) return user.username;
+    const email = user?.emailAddresses?.[0]?.emailAddress || '';
+    return email ? email.split('@')[0] : '';
+}
+
+function normalizeUsername(value) {
+    return value.trim().replace(/^@+/, '').replace(/\s+/g, '-');
+}
+
+function validationForStep(stepIndex, formData) {
+    const errors = {};
+
+    if (stepIndex === 0) {
+        if (!formData.fullName.trim()) errors.fullName = 'Enter the name you want displayed in Mission Control.';
+        if (!normalizeUsername(formData.username)) errors.username = 'Choose a username to identify this workspace.';
+    }
+
+    if (stepIndex === 1 && formData.llmType === 'custom') {
+        if (!formData.provider) errors.provider = 'Choose the provider you want to authorize.';
+        if (!formData.apiKey.trim()) errors.apiKey = 'Add the provider API key so we can store access during provisioning.';
+    }
+
+    return errors;
+}
+
+function stepSummary(formData) {
+    if (formData.llmType === 'default') {
+        return 'Managed default stack';
+    }
+
+    const provider = PROVIDERS.find((item) => item.id === formData.provider);
+    return `${provider?.label || 'Custom'} credentials`;
+}
+
+export default function Onboarding() {
+    const navigate = useNavigate();
+    const { signOut } = useClerk();
+    const { user, isLoaded } = useUser();
+    const [currentStep, setCurrentStep] = useState(0);
+    const [checkingStatus, setCheckingStatus] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [submissionError, setSubmissionError] = useState('');
+    const [errors, setErrors] = useState({});
     const [formData, setFormData] = useState({
         fullName: '',
         username: '',
         phoneNumber: '',
-        llmType: 'default', // 'default' or 'custom'
-        provider: 'openai',
-        model: 'gpt-4o',
+        llmType: 'default',
+        provider: 'anthropic',
+        model: '',
         apiKey: '',
         channels: {
             whatsapp: false,
@@ -126,450 +146,560 @@ export default function Onboarding() {
 
     useEffect(() => {
         const checkStatus = async () => {
-            if (isLoaded && user) {
-                try {
-                    const res = await apiAuthFetch('/api/user/profile');
-                    if (res.ok) {
-                        const { profile } = await res.json();
-                        // If user is already set up, skip onboarding
-                        if (profile?.operation_status === 'ready') {
-                            navigate('/app', { replace: true });
-                            return;
-                        }
+            if (!isLoaded || !user) return;
+
+            try {
+                const res = await apiAuthFetch('/api/user/profile');
+                if (res.ok) {
+                    const { profile } = await res.json();
+
+                    if (profile?.operation_status === 'ready') {
+                        navigate('/app', { replace: true });
+                        return;
                     }
-                } catch (err) {
-                    console.error('Failed to check profile status:', err);
+
+                    if (profile?.operation_status === 'onboarded' || profile?.operation_status === 'provisioning') {
+                        navigate('/provisioning', { replace: true });
+                        return;
+                    }
                 }
-
-                setFormData(prev => ({
-                    ...prev,
-                    fullName: user.fullName || '',
-                    username: user.username || user.emailAddresses[0].emailAddress.split('@')[0],
-                }));
+            } catch (error) {
+                console.error('[onboarding] failed to check profile status:', error);
             }
+
+            setFormData((previous) => ({
+                ...previous,
+                fullName: user.fullName || '',
+                username: deriveUsername(user),
+            }));
+            setCheckingStatus(false);
         };
+
         checkStatus();
-    }, [isLoaded, user, navigate]);
+    }, [isLoaded, navigate, user]);
 
-    const handleNext = () => {
-        if (currentStep < steps.length - 1) {
-            setDirection(1);
-            setCurrentStep(currentStep + 1);
-        }
+    const selectedProvider = useMemo(
+        () => PROVIDERS.find((item) => item.id === formData.provider) || PROVIDERS[0],
+        [formData.provider],
+    );
+
+    const progress = ((currentStep + 1) / STEPS.length) * 100;
+
+    const goNext = () => {
+        const nextErrors = validationForStep(currentStep, formData);
+        setErrors(nextErrors);
+        if (Object.keys(nextErrors).length > 0) return;
+
+        setSubmissionError('');
+        setCurrentStep((value) => Math.min(value + 1, STEPS.length - 1));
     };
 
-    const handleBack = () => {
-        if (currentStep > 0) {
-            setDirection(-1);
-            setCurrentStep(currentStep - 1);
-        }
-    };
-
-    const variants = {
-        enter: (direction) => ({
-            x: direction > 0 ? 40 : -40,
-            opacity: 0,
-            scale: 0.95,
-        }),
-        center: {
-            zIndex: 1,
-            x: 0,
-            opacity: 1,
-            scale: 1,
-        },
-        exit: (direction) => ({
-            zIndex: 0,
-            x: direction < 0 ? 40 : -40,
-            opacity: 0,
-            scale: 0.95,
-        }),
+    const goBack = () => {
+        setSubmissionError('');
+        setCurrentStep((value) => Math.max(value - 1, 0));
     };
 
     const startProvisioning = async () => {
+        const nextErrors = validationForStep(currentStep, formData);
+        setErrors(nextErrors);
+        if (Object.keys(nextErrors).length > 0) return;
+
         setLoading(true);
+        setSubmissionError('');
+
         try {
-            // Sync profile with full data and trigger provisioning
             const res = await apiAuthFetch('/api/user/profile/sync', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    username: formData.username,
-                    fullName: formData.fullName,
-                    phoneNumber: formData.phoneNumber,
+                    username: normalizeUsername(formData.username),
+                    fullName: formData.fullName.trim(),
+                    phoneNumber: formData.phoneNumber.trim(),
                     onboardingData: {
                         llm: {
                             type: formData.llmType,
-                            provider: formData.provider,
-                            model: formData.model,
-                            apiKey: formData.apiKey,
+                            provider: formData.llmType === 'custom' ? formData.provider : '',
+                            model: formData.model.trim(),
+                            apiKey: formData.llmType === 'custom' ? formData.apiKey.trim() : '',
                         },
                         channels: formData.channels,
                     },
-                    triggerProvision: true
-                })
+                    triggerProvision: true,
+                }),
             });
 
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({}));
-                throw new Error(errorData.message || 'Failed to sync profile');
+                throw new Error(errorData.message || errorData.error || 'Unable to start provisioning.');
             }
 
-            // Navigate to the dedicated white-themed provisioning screen
             navigate('/provisioning');
-
-        } catch (err) {
-            console.error('[onboarding] Provisioning start failed:', err);
-            alert(`Setup failed: ${err.message}`);
+        } catch (error) {
+            console.error('[onboarding] provisioning start failed:', error);
+            setSubmissionError(error?.message || 'Unable to start provisioning.');
             setLoading(false);
         }
     };
 
-    return (
-        <div className="flex min-h-dvh flex-col bg-white text-[#1a1a2e]" style={{ fontFamily: '"Satoshi", sans-serif' }}>
-            {/* Header */}
-            <header className="flex items-center justify-between px-8 py-6">
-                <div className="flex items-center gap-2">
-                    {/* Logo Removed */}
+    if (checkingStatus) {
+        return (
+            <div className="flex min-h-dvh items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_38%),linear-gradient(180deg,_#ffffff_0%,_#f8fafc_100%)] px-6">
+                <div className="w-full max-w-xl rounded-[32px] border border-slate-200 bg-white/90 p-8 shadow-[0_30px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+                    <div className="h-2 w-40 overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-600" />
+                    </div>
+                    <h1 className="mt-6 text-2xl font-black tracking-tight text-slate-900">Preparing your setup flow</h1>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                        We are checking whether this workspace is new, already provisioning, or ready to enter the command center.
+                    </p>
                 </div>
-                <div className="flex items-center gap-4">
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-dvh bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_38%),linear-gradient(180deg,_#ffffff_0%,_#f8fafc_100%)] text-slate-900" style={{ fontFamily: '"Satoshi", sans-serif' }}>
+            <header className="px-6 py-6 sm:px-8">
+                <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-950 via-blue-950 to-blue-700 shadow-[0_14px_30px_rgba(37,99,235,0.24)] ring-1 ring-white/40">
+                            <span className="text-sm font-black tracking-[0.2em] text-white">MT</span>
+                        </div>
+                        <div>
+                            <div className="text-sm font-black uppercase tracking-[0.24em] text-slate-900">Magic Teams</div>
+                            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Workspace Launch</div>
+                        </div>
+                    </div>
+
                     <button
                         onClick={() => signOut(() => navigate('/'))}
-                        className="flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-50 hover:text-slate-900 transition-all"
+                        className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                     >
-                        <LogOut size={12} />
+                        <LogOut size={14} />
                         Sign Out
                     </button>
-                    <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500 uppercase">
-                        {user?.firstName?.charAt(0) || user?.username?.charAt(0) || 'S'}
-                    </div>
                 </div>
             </header>
 
-            <main className="flex flex-1 flex-col items-center justify-center px-6 pb-20">
-                <div className="w-full max-w-md overflow-hidden min-h-[400px] flex flex-col items-center">
-                    <AnimatePresence mode="wait" initial={false} custom={direction}>
-                        <motion.div
-                            key={currentStep}
-                            custom={direction}
-                            variants={variants}
-                            initial="enter"
-                            animate="center"
-                            exit="exit"
-                            transition={{
-                                x: { type: "spring", stiffness: 300, damping: 30 },
-                                opacity: { duration: 0.2 },
-                                scale: { duration: 0.3 }
-                            }}
-                            layout
-                            className="w-full"
-                        >
-                            {/* Step 1: Identity */}
-                            {currentStep === 0 && (
-                                <div className="flex flex-col items-center text-center w-full">
-                                    <span className="mb-6 rounded-full bg-slate-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 ring-1 ring-slate-100">
-                                        Account
-                                    </span>
-                                    <h1 className="mb-3 text-3xl font-bold tracking-tight">What's your name?</h1>
-                                    <p className="mb-10 text-slate-500">You know, the one you were born with.</p>
+            <main className="px-6 pb-16 sm:px-8">
+                <div className="mx-auto grid w-full max-w-7xl gap-8 lg:grid-cols-[320px_minmax(0,1fr)]">
+                    <aside className="rounded-[32px] border border-slate-200 bg-white/80 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)] backdrop-blur">
+                        <div className="rounded-3xl bg-slate-950 p-6 text-white">
+                            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-blue-200">Mission Control Setup</div>
+                            <h1 className="mt-4 text-3xl font-black tracking-tight">Launch your workspace with confidence</h1>
+                            <p className="mt-4 text-sm leading-6 text-slate-300">
+                                We will collect the minimum details needed to provision your dedicated OpenClaw environment and hand you off to live operations cleanly.
+                            </p>
+                        </div>
 
-                                    <div className="mb-10 w-full space-y-6">
-                                        <div className="text-left">
-                                            <label className="mb-2 ml-1 block text-xs font-bold uppercase tracking-wider text-slate-400">Name</label>
+                        <div className="mt-6">
+                            <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                                <span>Setup progress</span>
+                                <span>{Math.round(progress)}%</span>
+                            </div>
+                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                                <motion.div
+                                    animate={{ width: `${progress}%` }}
+                                    transition={{ type: 'spring', stiffness: 180, damping: 24 }}
+                                    className="h-full rounded-full bg-blue-600"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mt-8 space-y-3">
+                            {STEPS.map((step, index) => {
+                                const isActive = index === currentStep;
+                                const isComplete = index < currentStep;
+                                return (
+                                    <button
+                                        key={step.id}
+                                        type="button"
+                                        onClick={() => {
+                                            if (index <= currentStep) setCurrentStep(index);
+                                        }}
+                                        className={`w-full rounded-2xl border p-4 text-left transition-all ${
+                                            isActive
+                                                ? 'border-blue-200 bg-blue-50 shadow-sm'
+                                                : isComplete
+                                                    ? 'border-emerald-200 bg-emerald-50/70'
+                                                    : 'border-slate-200 bg-white'
+                                        }`}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+                                                isComplete
+                                                    ? 'bg-emerald-600 text-white'
+                                                    : isActive
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-slate-100 text-slate-500'
+                                            }`}>
+                                                {isComplete ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-bold text-slate-900">{step.title}</div>
+                                                <div className="mt-1 text-xs leading-5 text-slate-500">{step.description}</div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">What happens next</div>
+                            <div className="mt-3 space-y-3 text-sm text-slate-600">
+                                <div className="flex gap-3">
+                                    <ShieldCheck className="mt-0.5 h-4 w-4 text-blue-600" />
+                                    <span>Your profile is synced to the backend and control plane.</span>
+                                </div>
+                                <div className="flex gap-3">
+                                    <Bot className="mt-0.5 h-4 w-4 text-blue-600" />
+                                    <span>A dedicated OpenClaw instance is provisioned on your assigned VPS.</span>
+                                </div>
+                                <div className="flex gap-3">
+                                    <Sparkles className="mt-0.5 h-4 w-4 text-blue-600" />
+                                    <span>Provider credentials can be refined later in Settings without repeating onboarding.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <section className="rounded-[32px] border border-slate-200 bg-white/90 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)] backdrop-blur sm:p-8">
+                        {currentStep === 0 && (
+                            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+                                <div>
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">
+                                        <UserIcon className="h-3.5 w-3.5" />
+                                        Workspace profile
+                                    </div>
+                                    <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-900">Set the identity of your control plane</h2>
+                                    <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600">
+                                        This information is used to name the workspace, personalize the assistant surfaces, and keep your provisioning records consistent.
+                                    </p>
+
+                                    <div className="mt-8 grid gap-5">
+                                        <div>
+                                            <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Display name</label>
                                             <input
                                                 type="text"
                                                 value={formData.fullName}
-                                                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                                                className="w-full rounded-2xl bg-slate-50 px-6 py-4 text-lg text-[#1a1a1a] transition-all placeholder:text-slate-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100"
+                                                onChange={(event) => setFormData({ ...formData, fullName: event.target.value })}
+                                                className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-900 outline-none transition-colors focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
                                                 placeholder="John Doe"
                                             />
-                                        </div>
-
-                                        <div className="text-left">
-                                            <label className="mb-2 ml-1 block text-xs font-bold uppercase tracking-wider text-slate-400">Username</label>
-                                            <div className="relative">
-                                                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-lg text-slate-400 font-medium">@</span>
-                                                <input
-                                                    type="text"
-                                                    value={formData.username}
-                                                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                                    className="w-full rounded-2xl bg-slate-50 py-4 pl-12 pr-6 text-lg text-[#1a1a1a] transition-all placeholder:text-slate-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100"
-                                                    placeholder="johndoe"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="text-left">
-                                            <label className="mb-2 ml-1 block text-xs font-bold uppercase tracking-wider text-slate-400">Phone Number</label>
-                                            <input
-                                                type="tel"
-                                                value={formData.phoneNumber}
-                                                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                                                className="w-full rounded-2xl bg-slate-50 px-6 py-4 text-lg text-[#1a1a1a] transition-all placeholder:text-slate-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100"
-                                                placeholder="+1 (555) 000-0000"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        onClick={handleNext}
-                                        className="w-full rounded-full bg-blue-600 py-3.5 text-base font-bold text-white transition-all hover:bg-blue-700 active:scale-[0.98]"
-                                    >
-                                        Continue
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* Step 2: AI Config */}
-                            {currentStep === 1 && (
-                                <div className="flex flex-col items-center text-center w-full">
-                                    <span className="mb-6 rounded-full bg-slate-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 ring-1 ring-slate-100">
-                                        Intelligence
-                                    </span>
-                                    <h1 className="mb-3 text-3xl font-bold tracking-tight">Choose your AI</h1>
-                                    <p className="mb-10 text-slate-500">Pick the brain that powers your workspace.</p>
-
-                                    <div className="mb-10 w-full space-y-6">
-                                        <div className="relative grid grid-cols-2 gap-3">
-                                            <motion.button
-                                                whileHover={{ scale: 1.02 }}
-                                                whileTap={{ scale: 0.98 }}
-                                                onClick={() => setFormData({ ...formData, llmType: 'default' })}
-                                                className={`relative z-10 rounded-2xl border-2 p-4 transition-colors duration-300 ${formData.llmType === 'default' ? 'border-blue-600' : 'border-slate-50 opacity-60'}`}
-                                            >
-                                                {formData.llmType === 'default' && (
-                                                    <motion.div
-                                                        layoutId="aiTypeHighlight"
-                                                        className="absolute inset-0 bg-blue-50/50 rounded-[14px] -z-10"
-                                                        transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                                                    />
-                                                )}
-                                                <Zap className="mx-auto mb-2 text-blue-600" size={20} />
-                                                <div className="text-sm font-bold">Default</div>
-                                            </motion.button>
-                                            <motion.button
-                                                whileHover={{ scale: 1.02 }}
-                                                whileTap={{ scale: 0.98 }}
-                                                onClick={() => setFormData({ ...formData, llmType: 'custom' })}
-                                                className={`relative z-10 rounded-2xl border-2 p-4 transition-colors duration-300 ${formData.llmType === 'custom' ? 'border-blue-600' : 'border-slate-50 opacity-60'}`}
-                                            >
-                                                {formData.llmType === 'custom' && (
-                                                    <motion.div
-                                                        layoutId="aiTypeHighlight"
-                                                        className="absolute inset-0 bg-blue-50/50 rounded-[14px] -z-10"
-                                                        transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                                                    />
-                                                )}
-                                                <SettingsIcon className="mx-auto mb-2 text-blue-600" size={20} />
-                                                <div className="text-sm font-bold">Custom</div>
-                                            </motion.button>
-                                        </div>
-
-                                        <AnimatePresence>
-                                            {formData.llmType === 'custom' && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, height: 0, y: -10 }}
-                                                    animate={{ opacity: 1, height: 'auto', y: 0 }}
-                                                    exit={{ opacity: 0, height: 0, y: -10 }}
-                                                    transition={{ type: 'spring', duration: 0.4, bounce: 0 }}
-                                                    className="overflow-hidden space-y-4 pt-4"
-                                                >
-                                                    <div className="grid grid-cols-4 gap-2">
-                                                        {providers.slice(0, 8).map(p => (
-                                                            <motion.button
-                                                                key={p.id}
-                                                                whileHover={{ scale: 1.05 }}
-                                                                whileTap={{ scale: 0.95 }}
-                                                                onClick={() => setFormData({ ...formData, provider: p.id, model: p.models[0].id })}
-                                                                className={`rounded-xl border py-2 text-[10px] font-bold transition-all ${formData.provider === p.id ? 'border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'border-slate-100 bg-slate-50 text-slate-400 opacity-80'}`}
-                                                            >
-                                                                {p.name}
-                                                            </motion.button>
-                                                        ))}
-                                                    </div>
-                                                    <select
-                                                        value={formData.model}
-                                                        onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                                                        className="w-full rounded-2xl bg-slate-50 px-6 py-4 text-base font-medium text-[#1a1a2e] focus:outline-none ring-1 ring-slate-100"
-                                                    >
-                                                        {providers.find(p => p.id === formData.provider)?.models.map(m => (
-                                                            <option key={m.id} value={m.id}>{m.name}</option>
-                                                        ))}
-                                                    </select>
-                                                    <input
-                                                        type="password"
-                                                        value={formData.apiKey}
-                                                        onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                                                        className="w-full rounded-2xl bg-slate-50 px-6 py-4 text-lg text-[#1a1a1a] transition-all placeholder:text-slate-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100"
-                                                        placeholder="sk-..."
-                                                    />
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
-
-                                    <button
-                                        onClick={handleNext}
-                                        className="w-full rounded-full bg-blue-600 py-3.5 text-base font-bold text-white transition-all hover:bg-blue-700 active:scale-[0.98]"
-                                    >
-                                        Continue
-                                    </button>
-                                    {currentStep > 0 && (
-                                        <button onClick={handleBack} className="mt-4 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors">
-                                            Back
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Step 3: Channels */}
-                            {currentStep === 2 && (
-                                <div className="flex flex-col items-center text-center w-full">
-                                    <span className="mb-6 rounded-full bg-slate-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 ring-1 ring-slate-100">
-                                        Connectivity
-                                    </span>
-                                    <h1 className="mb-3 text-3xl font-bold tracking-tight">Active channels</h1>
-                                    <p className="mb-10 text-slate-500">Enable where your agents can reach you.</p>
-
-                                    <div className="mb-10 w-full space-y-4">
-                                        <button
-                                            onClick={() => setFormData({ ...formData, channels: { ...formData.channels, whatsapp: !formData.channels.whatsapp } })}
-                                            className={`flex w-full items-center justify-between rounded-2xl border-2 p-5 transition-all ${formData.channels.whatsapp ? 'border-blue-600 bg-slate-50' : 'border-slate-50 bg-white opacity-60'}`}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <img src="https://cdn.simpleicons.org/whatsapp/25D366" alt="WhatsApp" className="h-8 w-8 object-contain" />
-                                                <div className="text-left">
-                                                    <div className="text-sm font-bold uppercase tracking-wider">WhatsApp</div>
-                                                    <div className="text-xs text-slate-500">Official API Access</div>
-                                                </div>
-                                            </div>
-                                            <div className={`h-4 w-4 rounded-full ${formData.channels.whatsapp ? 'bg-blue-600' : 'bg-slate-200'}`}></div>
-                                        </button>
-
-                                        <button
-                                            onClick={() => setFormData({ ...formData, channels: { ...formData.channels, telegram: !formData.channels.telegram } })}
-                                            className={`flex w-full items-center justify-between rounded-2xl border-2 p-5 transition-all ${formData.channels.telegram ? 'border-blue-600 bg-slate-50' : 'border-slate-50 bg-white opacity-60'}`}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <img src="https://cdn.simpleicons.org/telegram/2CA5E0" alt="Telegram" className="h-8 w-8 object-contain" />
-                                                <div className="text-left">
-                                                    <div className="text-sm font-bold uppercase tracking-wider">Telegram</div>
-                                                    <div className="text-xs text-slate-500">Custom Bot Setup</div>
-                                                </div>
-                                            </div>
-                                            <div className={`h-4 w-4 rounded-full ${formData.channels.telegram ? 'bg-blue-600' : 'bg-slate-200'}`}></div>
-                                        </button>
-                                    </div>
-
-                                    <button
-                                        onClick={handleNext}
-                                        className="w-full rounded-full bg-blue-600 py-3.5 text-base font-bold text-white transition-all hover:bg-blue-700 active:scale-[0.98]"
-                                    >
-                                        Continue
-                                    </button>
-                                    {currentStep > 0 && (
-                                        <button onClick={handleBack} className="mt-4 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors">
-                                            Back
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Step 4: Verification */}
-                            {currentStep === 3 && (
-                                <div className="flex flex-col items-center text-center w-full">
-                                    <span className="mb-6 rounded-full bg-slate-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 ring-1 ring-slate-100">
-                                        Finalize
-                                    </span>
-                                    <h1 className="mb-3 text-3xl font-bold tracking-tight">Ready to launch?</h1>
-                                    <p className="mb-10 text-slate-500">Confirm your setup to deploy your workspace.</p>
-
-                                    <div className="mb-10 w-full rounded-3xl bg-slate-50 p-6 text-left space-y-6 ring-1 ring-slate-100">
-                                        <div className="flex justify-between items-start border-b border-slate-200/50 pb-4">
-                                            <div>
-                                                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Identity</div>
-                                                <div className="text-sm font-bold">@{formData.username}</div>
-                                                <div className="text-xs text-slate-500 font-medium">{formData.fullName}</div>
-                                                {formData.phoneNumber && (
-                                                    <div className="text-[xs] text-blue-600 font-bold mt-1">{formData.phoneNumber}</div>
-                                                )}
-                                            </div>
-                                            <div className="rounded-full bg-white p-2 shadow-sm ring-1 ring-slate-200">
-                                                <UserIcon size={16} className="text-slate-400" />
-                                            </div>
-                                        </div>
-
-                                        <div className="flex justify-between items-start border-b border-slate-200/50 pb-4">
-                                            <div>
-                                                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">AI Processor</div>
-                                                <div className="text-sm font-bold capitalize">{formData.llmType} Integration</div>
-                                                <div className="text-xs text-slate-500 mt-0.5 font-medium">{formData.model}</div>
-                                                {formData.llmType === 'custom' && (
-                                                    <div className="text-[10px] text-blue-600 font-bold uppercase tracking-tight mt-1">{formData.provider} enabled</div>
-                                                )}
-                                            </div>
-                                            <div className="rounded-full bg-white p-2 shadow-sm ring-1 ring-slate-200">
-                                                <Zap size={16} className="text-blue-600" />
-                                            </div>
+                                            {errors.fullName && <p className="mt-2 text-sm text-red-600">{errors.fullName}</p>}
                                         </div>
 
                                         <div>
-                                            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Connectivity</div>
-                                            <div className="flex flex-wrap gap-2">
-                                                {formData.channels.whatsapp && (
-                                                    <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-slate-100">
-                                                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
-                                                        WhatsApp
+                                            <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Workspace username</label>
+                                            <div className="relative">
+                                                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">@</span>
+                                                <input
+                                                    type="text"
+                                                    value={formData.username}
+                                                    onChange={(event) => setFormData({ ...formData, username: normalizeUsername(event.target.value) })}
+                                                    className="w-full rounded-2xl border border-slate-200 bg-white py-4 pl-10 pr-5 text-base text-slate-900 outline-none transition-colors focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+                                                    placeholder="operations-lead"
+                                                />
+                                            </div>
+                                            {errors.username && <p className="mt-2 text-sm text-red-600">{errors.username}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Phone number</label>
+                                            <input
+                                                type="tel"
+                                                value={formData.phoneNumber}
+                                                onChange={(event) => setFormData({ ...formData, phoneNumber: event.target.value })}
+                                                className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-900 outline-none transition-colors focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+                                                placeholder="+1 555 000 0000"
+                                            />
+                                            <p className="mt-2 text-sm text-slate-500">Optional. Useful if you plan to wire channels that depend on operator escalation.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-6">
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Preview</div>
+                                    <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-xl font-black text-slate-900 shadow-sm ring-1 ring-slate-200">
+                                        {(formData.fullName || formData.username || 'MT').trim().charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="mt-5 text-xl font-black text-slate-900">{formData.fullName || 'Your workspace name'}</div>
+                                    <div className="mt-1 text-sm font-semibold text-blue-700">@{normalizeUsername(formData.username) || 'workspace-handle'}</div>
+                                    <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">
+                                        This identity will appear in provisioning records, operator context, and setup summaries. You can still refine the agent persona later.
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {currentStep === 1 && (
+                            <div>
+                                <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">
+                                    <KeyRound className="h-3.5 w-3.5" />
+                                    Model access
+                                </div>
+                                <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-900">Decide how this workspace gets model access</h2>
+                                <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
+                                    Start with the managed default stack for the smoothest launch, or add provider credentials now so the workspace is ready to authenticate immediately after provisioning.
+                                </p>
+
+                                <div className="mt-8 grid gap-4 lg:grid-cols-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, llmType: 'default', apiKey: '' })}
+                                        className={`rounded-[28px] border p-6 text-left transition-all ${formData.llmType === 'default' ? 'border-blue-200 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white">
+                                                <Sparkles className="h-5 w-5" />
+                                            </div>
+                                            <div>
+                                                <div className="text-lg font-black text-slate-900">Managed default</div>
+                                                <div className="text-sm text-slate-500">Fastest path into the workspace.</div>
+                                            </div>
+                                        </div>
+                                        <p className="mt-5 text-sm leading-6 text-slate-600">
+                                            We provision the instance without asking for a provider key yet. You can fine-tune providers, models, and routing later from Settings.
+                                        </p>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, llmType: 'custom' })}
+                                        className={`rounded-[28px] border p-6 text-left transition-all ${formData.llmType === 'custom' ? 'border-blue-200 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white">
+                                                <Zap className="h-5 w-5" />
+                                            </div>
+                                            <div>
+                                                <div className="text-lg font-black text-slate-900">Bring your own key</div>
+                                                <div className="text-sm text-slate-500">Store provider access during setup.</div>
+                                            </div>
+                                        </div>
+                                        <p className="mt-5 text-sm leading-6 text-slate-600">
+                                            We will store the provider credential while provisioning. Primary-model routing still remains editable later, which keeps this step stable and low-risk.
+                                        </p>
+                                    </button>
+                                </div>
+
+                                {formData.llmType === 'custom' && (
+                                    <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+                                        <div>
+                                            <div className="grid gap-3 sm:grid-cols-2">
+                                                {PROVIDERS.map((provider) => (
+                                                    <button
+                                                        key={provider.id}
+                                                        type="button"
+                                                        onClick={() => setFormData({ ...formData, provider: provider.id })}
+                                                        className={`rounded-2xl border p-4 text-left transition-all ${formData.provider === provider.id ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                                                    >
+                                                        <div className="text-sm font-black text-slate-900">{provider.label}</div>
+                                                        <div className="mt-1 text-xs leading-5 text-slate-500">{provider.note}</div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {errors.provider && <p className="mt-2 text-sm text-red-600">{errors.provider}</p>}
+
+                                            <div className="mt-6">
+                                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Provider API key</label>
+                                                <input
+                                                    type="password"
+                                                    value={formData.apiKey}
+                                                    onChange={(event) => setFormData({ ...formData, apiKey: event.target.value })}
+                                                    className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-900 outline-none transition-colors focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+                                                    placeholder={selectedProvider.keyPlaceholder}
+                                                />
+                                                {errors.apiKey && <p className="mt-2 text-sm text-red-600">{errors.apiKey}</p>}
+                                            </div>
+
+                                            <div className="mt-6">
+                                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Preferred model ID</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.model}
+                                                    onChange={(event) => setFormData({ ...formData, model: event.target.value })}
+                                                    className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-900 outline-none transition-colors focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+                                                    placeholder={selectedProvider.modelPlaceholder}
+                                                />
+                                                <p className="mt-2 text-sm text-slate-500">Optional. This is recorded as a preference, but you can still set the primary model later in Settings.</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-6">
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Provisioning note</div>
+                                            <div className="mt-4 text-lg font-black text-slate-900">{selectedProvider.label} credential capture</div>
+                                            <p className="mt-3 text-sm leading-6 text-slate-600">
+                                                During provisioning we only store the credential needed for provider authentication. Full custom-provider setup and exact model routing remain available in the Settings page after launch.
+                                            </p>
+                                            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">
+                                                This keeps onboarding dependable and avoids a false promise that model routing has already been finalized before the instance is ready.
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {currentStep === 2 && (
+                            <div>
+                                <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">
+                                    <MessageSquare className="h-3.5 w-3.5" />
+                                    Channels
+                                </div>
+                                <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-900">Choose the channels you expect to wire first</h2>
+                                <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
+                                    This does not force credentials immediately. It helps us tailor the workspace state so the first channel setup in Settings feels intentional instead of generic.
+                                </p>
+
+                                <div className="mt-8 grid gap-4 lg:grid-cols-2">
+                                    {CHANNELS.map((channel) => {
+                                        const enabled = formData.channels[channel.id];
+                                        return (
+                                            <button
+                                                key={channel.id}
+                                                type="button"
+                                                onClick={() => setFormData({
+                                                    ...formData,
+                                                    channels: {
+                                                        ...formData.channels,
+                                                        [channel.id]: !enabled,
+                                                    },
+                                                })}
+                                                className={`rounded-[28px] border p-6 text-left transition-all ${enabled ? 'border-blue-200 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                                            >
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div>
+                                                        <div className="text-lg font-black text-slate-900">{channel.title}</div>
+                                                        <p className="mt-3 text-sm leading-6 text-slate-600">{channel.description}</p>
                                                     </div>
-                                                )}
-                                                {formData.channels.telegram && (
-                                                    <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-slate-100">
-                                                        <div className="h-1.5 w-1.5 rounded-full bg-blue-500"></div>
-                                                        Telegram
+                                                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${enabled ? 'border-blue-200 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-400'}`}>
+                                                        {enabled ? <CheckCircle2 className="h-4 w-4" /> : <span className="h-2 w-2 rounded-full bg-current" />}
                                                     </div>
-                                                )}
-                                                {!formData.channels.whatsapp && !formData.channels.telegram && (
-                                                    <div className="text-xs text-slate-400 italic">No channels selected</div>
+                                                </div>
+                                                <div className={`mt-6 h-16 rounded-3xl bg-gradient-to-r ${channel.accent}`} />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {currentStep === 3 && (
+                            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+                                <div>
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">
+                                        <ShieldCheck className="h-3.5 w-3.5" />
+                                        Review
+                                    </div>
+                                    <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-900">Review the workspace launch plan</h2>
+                                    <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
+                                        This is the last checkpoint before we sync your profile, queue provisioning if needed, and move you into the live provisioning screen.
+                                    </p>
+
+                                    <div className="mt-8 grid gap-4">
+                                        <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-6">
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Identity</div>
+                                            <div className="mt-3 text-xl font-black text-slate-900">{formData.fullName || 'Unnamed workspace'}</div>
+                                            <div className="mt-1 text-sm font-semibold text-blue-700">@{normalizeUsername(formData.username) || 'workspace-handle'}</div>
+                                            {formData.phoneNumber && <div className="mt-3 text-sm text-slate-600">{formData.phoneNumber}</div>}
+                                        </div>
+
+                                        <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-6">
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Model access</div>
+                                            <div className="mt-3 text-xl font-black text-slate-900">{stepSummary(formData)}</div>
+                                            <div className="mt-2 text-sm leading-6 text-slate-600">
+                                                {formData.llmType === 'default'
+                                                    ? 'Provision the workspace first, then refine providers and primary model in Settings.'
+                                                    : `${selectedProvider.label} credentials will be stored during provisioning. Preferred model: ${formData.model.trim() || 'set later in Settings'}.`}
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-6">
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Channels</div>
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                {CHANNELS.filter((channel) => formData.channels[channel.id]).length > 0 ? (
+                                                    CHANNELS.filter((channel) => formData.channels[channel.id]).map((channel) => (
+                                                        <div key={channel.id} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700">
+                                                            {channel.title}
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="text-sm text-slate-500">No channels pre-selected. You can still configure them later.</div>
                                                 )}
                                             </div>
                                         </div>
                                     </div>
+                                </div>
 
+                                <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-6 text-white">
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-200">Deployment sequence</div>
+                                    <div className="mt-6 space-y-4">
+                                        <div>
+                                            <div className="text-sm font-bold">1. Sync profile</div>
+                                            <div className="mt-1 text-sm text-slate-300">We persist your onboarding data and mark the workspace for provisioning.</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-bold">2. Allocate infrastructure</div>
+                                            <div className="mt-1 text-sm text-slate-300">The control plane assigns capacity or queues a node when needed.</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-bold">3. Hand off to live operations</div>
+                                            <div className="mt-1 text-sm text-slate-300">You land on a provisioning screen with honest service and workspace status instead of fake progress.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {submissionError && (
+                            <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                {submissionError}
+                            </div>
+                        )}
+
+                        <div className="mt-10 flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="text-sm text-slate-500">
+                                Step {currentStep + 1} of {STEPS.length}
+                            </div>
+
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                                <button
+                                    type="button"
+                                    onClick={goBack}
+                                    disabled={currentStep === 0 || loading}
+                                    className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                    Back
+                                </button>
+
+                                {currentStep < STEPS.length - 1 ? (
                                     <button
+                                        type="button"
+                                        onClick={goNext}
+                                        className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-slate-800"
+                                    >
+                                        Continue
+                                        <ArrowRight className="h-4 w-4" />
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
                                         onClick={startProvisioning}
                                         disabled={loading}
-                                        className="w-full rounded-full bg-blue-600 py-3.5 text-base font-bold text-white transition-all hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50"
+                                        className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                        {loading ? 'Deploying...' : 'Setup Account'}
+                                        {loading ? 'Launching workspace...' : 'Launch workspace'}
+                                        <ArrowRight className="h-4 w-4" />
                                     </button>
-                                    {currentStep > 0 && (
-                                        <button onClick={handleBack} className="mt-4 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors">
-                                            Back
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-                        </motion.div>
-                    </AnimatePresence>
-
-                    {/* Progress Dots */}
-                    <div className="mt-12 flex justify-center gap-3">
-                        {steps.map((_, idx) => (
-                            <div
-                                key={idx}
-                                className={`transition-all duration-300 ${idx === currentStep ? 'h-2 w-8 bg-blue-600 rounded-full' : 'h-2 w-2 bg-slate-200 rounded-full'}`}
-                            ></div>
-                        ))}
-                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </main>
-
-            {/* Footer */}
-            <footer className="py-10 text-center">
-                <div className="flex justify-center gap-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                    <span className="cursor-pointer hover:text-slate-900 transition-colors">Terms</span>
-                    <span className="cursor-pointer hover:text-slate-900 transition-colors">Privacy</span>
-                </div>
-            </footer>
         </div>
     );
 }
