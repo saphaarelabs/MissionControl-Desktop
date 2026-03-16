@@ -187,9 +187,16 @@ const Broadcast = () => {
 
                         {feedMessages.map((m, idx) => {
                             const isUser = m.role === 'user';
+                            const isAgentRelay = m.role === 'agent_message';
                             return (
                                 <div key={`${m.jobId}-${idx}`} className={`flex gap-6 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border border-slate-100 shadow-sm ${isUser ? 'bg-slate-900 text-white' : 'bg-white text-blue-600'}`}>
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border border-slate-100 shadow-sm ${
+                                        isUser
+                                            ? 'bg-slate-900 text-white'
+                                            : isAgentRelay
+                                                ? 'bg-amber-50 text-amber-600 border-amber-100'
+                                                : 'bg-white text-blue-600'
+                                    }`}>
                                         {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                                     </div>
                                     <div className="flex-1 max-w-3xl space-y-2">
@@ -197,6 +204,11 @@ const Broadcast = () => {
                                             <span className="text-[10px] font-black text-slate-900 uppercase tracking-tighter">
                                                 {m.agentId || 'ADMIN'}
                                             </span>
+                                            {isAgentRelay && (
+                                                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-amber-700">
+                                                    Inter-agent
+                                                </span>
+                                            )}
                                             <span className="text-[10px] font-bold text-slate-300">
                                                 {m.ts || 'RECENT'}
                                             </span>

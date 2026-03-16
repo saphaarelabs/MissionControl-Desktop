@@ -1,53 +1,183 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiAuthFetch } from '../lib/apiBase';
-import { Save, RefreshCw } from 'lucide-react';
+import {
+    BrainCircuit,
+    FileCode2,
+    FolderKanban,
+    MessageSquareMore,
+    RefreshCw,
+    Save,
+    ShieldCheck,
+    Sparkles,
+} from 'lucide-react';
 import { isDesktopApp, openExternal } from '../lib/desktop';
 
 const FOCUS_RING = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2';
+const PANEL_SURFACE = 'rounded-[28px] border border-slate-200/80 bg-white/95 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur';
 
 const TABS = [
-    { id: 'models', label: 'Models' },
-    { id: 'channels', label: 'Channels' },
-    { id: 'soul', label: 'SOUL.md' },
-    { id: 'workspace', label: 'Workspace File' },
-    { id: 'openclaw', label: 'openclaw.json' }
+    {
+        id: 'models',
+        label: 'Models',
+        description: 'Provider auth, enabled models, and primary routing.',
+        eyebrow: 'AI Routing',
+        icon: BrainCircuit,
+    },
+    {
+        id: 'channels',
+        label: 'Channels',
+        description: 'External communication surfaces and live channel setup.',
+        eyebrow: 'Comms',
+        icon: MessageSquareMore,
+    },
+    {
+        id: 'soul',
+        label: 'SOUL.md',
+        description: 'Persistent operator guidance and behavioral instructions.',
+        eyebrow: 'Identity',
+        icon: ShieldCheck,
+    },
+    {
+        id: 'workspace',
+        label: 'Workspace File',
+        description: 'Edit files inside the OpenClaw workspace directly.',
+        eyebrow: 'Workspace',
+        icon: FolderKanban,
+    },
+    {
+        id: 'openclaw',
+        label: 'openclaw.json',
+        description: 'Advanced runtime configuration for the gateway and agents.',
+        eyebrow: 'Runtime',
+        icon: FileCode2,
+    }
 ];
 
 const Settings = () => {
     const [activeTab, setActiveTab] = useState('models');
+    const activeTabMeta = TABS.find((tab) => tab.id === activeTab) || TABS[0];
+    const ActiveIcon = activeTabMeta.icon;
 
     return (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="mb-6 text-2xl font-bold text-gray-900">Settings</h2>
-
-            <div className="mb-6 flex flex-wrap gap-2 border-b border-gray-200" role="tablist" aria-label="Settings">
-                {TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setActiveTab(tab.id)}
-                        id={`tab-${tab.id}`}
-                        role="tab"
-                        aria-selected={activeTab === tab.id}
-                        aria-controls={`panel-${tab.id}`}
-                        className={`-mb-px rounded-t-lg border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${FOCUS_RING} ${activeTab === tab.id
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-gray-600 hover:text-gray-900'
-                            }`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
+        <div className="space-y-6">
+            <div className={`${PANEL_SURFACE} overflow-hidden`}>
+                <div className="bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_36%),linear-gradient(135deg,_#ffffff_0%,_#f8fafc_72%,_#eef4ff_100%)] px-5 py-6 sm:px-7 sm:py-7">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Configuration Control
+                    </div>
+                    <div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="max-w-3xl">
+                            <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Settings that read like a control surface</h1>
+                            <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-[15px]">
+                                Manage model access, channels, workspace instructions, and runtime files from one place. The goal here is speed with enough structure that risky changes stay obvious.
+                            </p>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            <div className="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Provider setup</div>
+                                <div className="mt-2 text-sm font-semibold text-slate-700">Auth, models, and primary routing</div>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Channels</div>
+                                <div className="mt-2 text-sm font-semibold text-slate-700">Telegram, Slack, Discord, WhatsApp</div>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Advanced files</div>
+                                <div className="mt-2 text-sm font-semibold text-slate-700">SOUL.md, workspace files, runtime JSON</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <section id={`panel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`} className="min-w-0">
-                {activeTab === 'models' && <ModelsTab />}
-                {activeTab === 'channels' && <ChannelsTab />}
-                {activeTab === 'soul' && <SoulTab />}
-                {activeTab === 'workspace' && <WorkspaceFileTab />}
-                {activeTab === 'openclaw' && <OpenClawConfigTab />}
-            </section>
+            <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+                <aside className={`${PANEL_SURFACE} h-fit p-4 sm:p-5 xl:sticky xl:top-24`}>
+                    <div className="mb-4 px-2">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Sections</div>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                            Move between operational areas without losing context. The current section summary stays visible on the right.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2" role="tablist" aria-label="Settings">
+                        {TABS.map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = activeTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => setActiveTab(tab.id)}
+                                    id={`tab-${tab.id}`}
+                                    role="tab"
+                                    aria-selected={isActive}
+                                    aria-controls={`panel-${tab.id}`}
+                                    className={`w-full rounded-2xl border px-4 py-3 text-left transition-all ${FOCUS_RING} ${
+                                        isActive
+                                            ? 'border-blue-200 bg-blue-50 shadow-sm'
+                                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+                                            isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'
+                                        }`}>
+                                            <Icon className="h-4.5 w-4.5" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{tab.eyebrow}</div>
+                                            <div className="mt-1 text-sm font-bold text-slate-900">{tab.label}</div>
+                                            <div className="mt-1 text-xs leading-5 text-slate-500">{tab.description}</div>
+                                        </div>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Good operating pattern</div>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                            Make model and channel changes here first, then use raw file editors only when you need a precise override.
+                        </p>
+                    </div>
+                </aside>
+
+                <section id={`panel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`} className={`${PANEL_SURFACE} min-w-0 p-5 sm:p-7`}>
+                    <div className="mb-7 flex flex-col gap-4 border-b border-slate-200 pb-6 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="flex items-start gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white">
+                                <ActiveIcon className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">{activeTabMeta.eyebrow}</div>
+                                <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900">{activeTabMeta.label}</h2>
+                                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{activeTabMeta.description}</p>
+                            </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Current focus</div>
+                            <div className="mt-1 text-sm font-semibold text-slate-700">
+                                {activeTab === 'models' && 'Set credentials first, then enable models, then save the primary route.'}
+                                {activeTab === 'channels' && 'Use direct channel setup here instead of editing gateway files by hand.'}
+                                {activeTab === 'soul' && 'Keep operator guidance clean and durable so future sessions stay consistent.'}
+                                {activeTab === 'workspace' && 'Use this for targeted workspace file edits without opening the terminal.'}
+                                {activeTab === 'openclaw' && 'Treat this as the final override layer when the UI does not cover a case.'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="min-w-0">
+                        {activeTab === 'models' && <ModelsTab />}
+                        {activeTab === 'channels' && <ChannelsTab />}
+                        {activeTab === 'soul' && <SoulTab />}
+                        {activeTab === 'workspace' && <WorkspaceFileTab />}
+                        {activeTab === 'openclaw' && <OpenClawConfigTab />}
+                    </div>
+                </section>
+            </div>
         </div>
     );
 };
@@ -598,9 +728,44 @@ const ModelsTab = () => {
     const enabledForProvider = enabledModels.filter(m => m.startsWith(`${providerKey}/`));
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-5">
+            <div className="rounded-[24px] border border-slate-200 bg-slate-50/90 p-4 sm:p-5">
+                <div className="grid gap-4 lg:grid-cols-3">
+                    <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Selected provider</div>
+                        <div className="mt-2 text-sm font-semibold text-slate-900">
+                            {providerCatalog.find(p => p.key === providerKey)?.label || providerKey}
+                        </div>
+                    </div>
+                    <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Enabled models</div>
+                        <div className="mt-2 text-sm font-semibold text-slate-900">{enabledModels.length}</div>
+                    </div>
+                    <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Primary route</div>
+                        <div className="mt-2 truncate text-sm font-semibold text-slate-900">
+                            {primaryModel || 'Not set yet'}
+                        </div>
+                    </div>
+                </div>
+                {(error || status) && (
+                    <div className="mt-4 space-y-3">
+                        {error && (
+                            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                {error}
+                            </div>
+                        )}
+                        {status && (
+                            <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                                {status}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
             {/* Step 1: Provider Selection */}
-            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="mb-3">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                         1. Choose Provider
@@ -625,7 +790,7 @@ const ModelsTab = () => {
             </div>
 
             {/* Step 2: Authentication */}
-            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="mb-3">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                         2. Authenticate
@@ -895,8 +1060,15 @@ const ModelsTab = () => {
             </div>
 
             {providerKey === 'custom' && (
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">3. Custom Provider Config</h3>
+                <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                    <div className="mb-3">
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                            3. Custom Provider Config
+                        </label>
+                        <p className="text-xs text-slate-500 mb-3">
+                            Define the provider identity, authentication, and model IDs exactly as they should be written into OpenClaw.
+                        </p>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <input
                             type="text"
@@ -977,7 +1149,7 @@ const ModelsTab = () => {
             )}
 
             {/* Step 3: Enable Models */}
-            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="mb-3">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                         {providerKey === 'custom' ? '4' : '3'}. Enable Models
@@ -1040,7 +1212,7 @@ const ModelsTab = () => {
             </div>
 
             {/* Step 4: Primary + Fallbacks */}
-            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="mb-3">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                         {providerKey === 'custom' ? '5' : '4'}. Primary & Fallback Models
@@ -1100,15 +1272,6 @@ const ModelsTab = () => {
                     </div>
                 </div>
 
-                {error && (
-                    <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm mt-3">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
-                        </svg>
-                        <span className="font-medium">{error}</span>
-                    </div>
-                )}
-
                 <button
                     type="button"
                     onClick={handleSaveConfig}
@@ -1122,20 +1285,46 @@ const ModelsTab = () => {
                 {!primaryModel && (
                     <p className="text-xs text-amber-600 mt-2">Select a primary model first</p>
                 )}
-
-                {status && (
-                    <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm mt-3">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                        </svg>
-                        <span className="font-medium">{status}</span>
-                    </div>
-                )}
             </div>
         </div>
     );
 };
 
+
+const EditorIntro = ({ eyebrow, title, description, path }) => (
+    <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(135deg,_#ffffff_0%,_#f8fafc_65%,_#eef4ff_100%)] p-5 shadow-sm">
+        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">{eyebrow}</div>
+        <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+                <h3 className="text-xl font-black tracking-tight text-slate-900">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+            </div>
+            {path && (
+                <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-xs text-slate-500 shadow-sm">
+                    Path
+                    <div className="mt-1 font-mono text-[11px] text-slate-700">{path}</div>
+                </div>
+            )}
+        </div>
+    </div>
+);
+
+const StatusBanners = ({ error, status }) => (
+    (error || status) ? (
+        <div className="space-y-3">
+            {error && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {error}
+                </div>
+            )}
+            {status && (
+                <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                    {status}
+                </div>
+            )}
+        </div>
+    ) : null
+);
 
 const SoulTab = () => {
     const [content, setContent] = useState('');
@@ -1189,47 +1378,56 @@ const SoulTab = () => {
     };
 
     return (
-        <div>
-            <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold text-gray-800">SOUL.md</h3>
-                <button
-                    type="button"
-                    onClick={loadSoul}
-                    className={`flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 ${FOCUS_RING}`}
-                    aria-label="Refresh SOUL.md"
-                >
-                    <RefreshCw className="w-4 h-4" aria-hidden="true" />
-                    Refresh
-                </button>
+        <div className="space-y-5">
+            <EditorIntro
+                eyebrow="Identity File"
+                title="SOUL.md keeps your operating personality consistent"
+                description="Use this file for durable guidance: tone, priorities, constraints, and behavior patterns that should carry across sessions. Keep it clean enough that it reads like policy, not notes."
+                path={path}
+            />
+
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Editor</div>
+                        <div className="mt-1 text-sm text-slate-600">Refresh before editing if another surface may have changed this file.</div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={loadSoul}
+                        className={`inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100 ${FOCUS_RING}`}
+                        aria-label="Refresh SOUL.md"
+                    >
+                        <RefreshCw className="w-4 h-4" aria-hidden="true" />
+                        Refresh
+                    </button>
+                </div>
+
+                {loading ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">Loading SOUL.md…</div>
+                ) : (
+                    <textarea
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        rows={16}
+                        name="soul"
+                        aria-label="SOUL.md"
+                        className={`w-full rounded-[20px] border border-slate-300 bg-slate-50/50 p-4 font-mono text-sm shadow-sm transition-colors hover:border-slate-400 ${FOCUS_RING}`}
+                    />
+                )}
             </div>
-            {path && (
-                <div className="text-xs text-gray-500 mb-2">Path: <span className="font-mono">{path}</span></div>
-            )}
-            {loading ? (
-                <div className="text-gray-500 text-sm">Loading SOUL.md…</div>
-            ) : (
-                <textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    rows={14}
-                    name="soul"
-                    aria-label="SOUL.md"
-                    className={`w-full rounded-lg border border-gray-300 p-3 font-mono text-sm shadow-sm ${FOCUS_RING}`}
-                />
-            )}
 
-            {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
-            {status && <div className="mt-3 text-sm text-green-600">{status}</div>}
+            <StatusBanners error={error} status={status} />
 
-            <div className="mt-4">
+            <div className="flex justify-end">
                 <button
                     type="button"
                     onClick={handleSave}
                     disabled={saving}
-                    className={`flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+                    className={`inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
                 >
                     <Save className="w-4 h-4" aria-hidden="true" />
-                    {saving ? 'Saving…' : 'Save'}
+                    {saving ? 'Saving…' : 'Save SOUL.md'}
                 </button>
             </div>
         </div>
@@ -1316,78 +1514,78 @@ const WorkspaceFileTab = () => {
     };
 
     return (
-        <div>
-            <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-800">Workspace File</h3>
-                <button
-                    type="button"
-                    onClick={loadFile}
-                    className={`flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 ${FOCUS_RING}`}
-                    disabled={!fileName}
-                >
-                    <RefreshCw className="w-4 h-4" aria-hidden="true" />
-                    Load
-                </button>
+        <div className="space-y-5">
+            <EditorIntro
+                eyebrow="Workspace Files"
+                title="Edit project files without leaving Mission Control"
+                description="Use this for precise edits inside the OpenClaw workspace when a settings form does not cover the case. Load a known file from the list or type a relative path directly."
+                path={path}
+            />
+
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)_auto]">
+                    <select
+                        value={fileName}
+                        onChange={(e) => {
+                            const next = e.target.value;
+                            setFileName(next);
+                            if (next) loadFile(next);
+                        }}
+                        name="file"
+                        aria-label="Workspace file"
+                        className={`rounded-xl border border-slate-300 px-3 py-2.5 text-sm shadow-sm transition-colors hover:border-slate-400 ${FOCUS_RING}`}
+                    >
+                        <option value="">Select a file…</option>
+                        {files.map((f) => (
+                            <option key={f} value={f}>{f}</option>
+                        ))}
+                    </select>
+                    <input
+                        type="text"
+                        value={fileName}
+                        onChange={(e) => setFileName(e.target.value)}
+                        name="fileName"
+                        autoComplete="off"
+                        aria-label="Workspace file path"
+                        className={`rounded-xl border border-slate-300 px-3 py-2.5 text-sm shadow-sm transition-colors hover:border-slate-400 ${FOCUS_RING}`}
+                        placeholder="Or type a path like README.md or notes/todo.md"
+                    />
+                    <button
+                        type="button"
+                        onClick={loadFile}
+                        className={`inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100 disabled:opacity-50 ${FOCUS_RING}`}
+                        disabled={!fileName}
+                    >
+                        <RefreshCw className="w-4 h-4" aria-hidden="true" />
+                        Load
+                    </button>
+                </div>
+
+                {loading ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">Loading file…</div>
+                ) : (
+                    <textarea
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        rows={16}
+                        name="workspaceFile"
+                        aria-label="Workspace file content"
+                        className={`w-full rounded-[20px] border border-slate-300 bg-slate-50/50 p-4 font-mono text-sm shadow-sm transition-colors hover:border-slate-400 ${FOCUS_RING}`}
+                    />
+                )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
-                <select
-                    value={fileName}
-                    onChange={(e) => {
-                        const next = e.target.value;
-                        setFileName(next);
-                        if (next) loadFile(next);
-                    }}
-                    name="file"
-                    aria-label="Workspace file"
-                    className={`rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm ${FOCUS_RING}`}
-                >
-                    <option value="">Select a file…</option>
-                    {files.map((f) => (
-                        <option key={f} value={f}>{f}</option>
-                    ))}
-                </select>
-                <input
-                    type="text"
-                    value={fileName}
-                    onChange={(e) => setFileName(e.target.value)}
-                    name="fileName"
-                    autoComplete="off"
-                    aria-label="Workspace file path"
-                    className={`rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm md:col-span-2 ${FOCUS_RING}`}
-                    placeholder="or type a path (e.g. README.md or notes/todo.md)"
-                />
-            </div>
+            <StatusBanners error={error} status={status} />
 
-            {path && (
-                <div className="text-xs text-gray-500 mb-2">Path: <span className="font-mono">{path}</span></div>
-            )}
-
-            {loading ? (
-                <div className="text-gray-500 text-sm">Loading file…</div>
-            ) : (
-                <textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    rows={14}
-                    name="workspaceFile"
-                    aria-label="Workspace file content"
-                    className={`w-full rounded-lg border border-gray-300 p-3 font-mono text-sm shadow-sm ${FOCUS_RING}`}
-                />
-            )}
-
-            {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
-            {status && <div className="mt-3 text-sm text-green-600">{status}</div>}
-
-            <div className="mt-4">
+            <div className="flex justify-end">
                 <button
                     type="button"
                     onClick={handleSave}
                     disabled={saving || !fileName}
-                    className={`flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+                    className={`inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
                 >
                     <Save className="w-4 h-4" aria-hidden="true" />
-                    {saving ? 'Saving…' : 'Save'}
+                    {saving ? 'Saving…' : 'Save File'}
                 </button>
             </div>
         </div>
@@ -1449,47 +1647,56 @@ const OpenClawConfigTab = () => {
     };
 
     return (
-        <div>
-            <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold text-gray-800">openclaw.json</h3>
-                <button
-                    type="button"
-                    onClick={loadConfig}
-                    className={`flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 ${FOCUS_RING}`}
-                    aria-label="Refresh openclaw.json"
-                >
-                    <RefreshCw className="w-4 h-4" aria-hidden="true" />
-                    Refresh
-                </button>
+        <div className="space-y-5">
+            <EditorIntro
+                eyebrow="Runtime JSON"
+                title="Use openclaw.json as the final override layer"
+                description="This is the sharp edge. Use it when the settings UI does not cover a runtime behavior, and treat each edit like an infrastructure change that should stay auditable."
+                path={path}
+            />
+
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Config editor</div>
+                        <div className="mt-1 text-sm text-slate-600">Refresh first if this instance may have been changed by another control surface.</div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={loadConfig}
+                        className={`inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100 ${FOCUS_RING}`}
+                        aria-label="Refresh openclaw.json"
+                    >
+                        <RefreshCw className="w-4 h-4" aria-hidden="true" />
+                        Refresh
+                    </button>
+                </div>
+
+                {loading ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">Loading config…</div>
+                ) : (
+                    <textarea
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        rows={18}
+                        name="openclawConfig"
+                        aria-label="openclaw.json"
+                        className={`w-full rounded-[20px] border border-slate-300 bg-slate-50/50 p-4 font-mono text-sm shadow-sm transition-colors hover:border-slate-400 ${FOCUS_RING}`}
+                    />
+                )}
             </div>
-            {path && (
-                <div className="text-xs text-gray-500 mb-2">Path: <span className="font-mono">{path}</span></div>
-            )}
-            {loading ? (
-                <div className="text-gray-500 text-sm">Loading config…</div>
-            ) : (
-                <textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    rows={16}
-                    name="openclawConfig"
-                    aria-label="openclaw.json"
-                    className={`w-full rounded-lg border border-gray-300 p-3 font-mono text-sm shadow-sm ${FOCUS_RING}`}
-                />
-            )}
 
-            {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
-            {status && <div className="mt-3 text-sm text-green-600">{status}</div>}
+            <StatusBanners error={error} status={status} />
 
-            <div className="mt-4">
+            <div className="flex justify-end">
                 <button
                     type="button"
                     onClick={handleSave}
                     disabled={saving}
-                    className={`flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+                    className={`inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
                 >
                     <Save className="w-4 h-4" aria-hidden="true" />
-                    {saving ? 'Saving…' : 'Save'}
+                    {saving ? 'Saving…' : 'Save Runtime Config'}
                 </button>
             </div>
         </div>
@@ -1797,10 +2004,10 @@ const ChannelsTab = () => {
         const state = rawState || 'not set up';
         const { ok: connected, configured } = classifyState(state);
         return (
-            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-gray-800">{title}</h4>
+                        <h4 className="font-semibold text-slate-900">{title}</h4>
                         {renderStatePill(state)}
                     </div>
                 </div>
@@ -1887,19 +2094,36 @@ const ChannelsTab = () => {
             <Overlay title={busyMessage} />
             <WhatsAppModal />
 
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-800">Channels</h3>
-                    <div className="text-xs text-gray-500">
-                        No-code setup: enable a plugin, add credentials, and it will restart the gateway automatically.
+            <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(135deg,_#ffffff_0%,_#f8fafc_65%,_#eef4ff_100%)] p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="max-w-3xl">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Channel Control</div>
+                        <h3 className="mt-2 text-xl font-black tracking-tight text-slate-900">Bring the agent to every place your team already works</h3>
+                        <div className="mt-2 text-sm leading-6 text-slate-600">
+                            Configure live channels without touching raw gateway files. Each save applies the credentials and restarts the gateway for you.
+                        </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Telegram</div>
+                            <div className="mt-1 text-sm font-semibold text-slate-700">{String(getAggregateState('telegram') || 'not set up')}</div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Discord</div>
+                            <div className="mt-1 text-sm font-semibold text-slate-700">{String(getAggregateState('discord') || 'not set up')}</div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Slack</div>
+                            <div className="mt-1 text-sm font-semibold text-slate-700">{String(getAggregateState('slack') || 'not set up')}</div>
+                        </div>
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="mt-4 flex justify-end">
                     <button
                         type="button"
                         onClick={loadAll}
                         disabled={loading || isBusy || whatsappPairing}
-                        className={`flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+                        className={`inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
                     >
                         <RefreshCw className="w-4 h-4" aria-hidden="true" />
                         Refresh
@@ -1907,8 +2131,10 @@ const ChannelsTab = () => {
                 </div>
             </div>
 
+            <StatusBanners error={error} status={status} />
+
             {loading && (
-                <div className="border border-gray-200 bg-gray-50 text-gray-800 rounded-lg p-3 text-sm">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                     Loading channel configuration… just a moment.
                 </div>
             )}

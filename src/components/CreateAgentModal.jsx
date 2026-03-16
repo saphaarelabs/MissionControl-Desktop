@@ -16,6 +16,8 @@ const CreateAgentModal = ({ isOpen, onClose, onCreated }) => {
         identityMd: '',
         soulMd: '',
         agentsMd: '',
+        specialties: '',
+        apps: '',
         initialTask: '',
         model: ''
     });
@@ -28,6 +30,8 @@ const CreateAgentModal = ({ isOpen, onClose, onCreated }) => {
             identityMd: '',
             soulMd: '',
             agentsMd: '',
+            specialties: '',
+            apps: '',
             initialTask: '',
             model: ''
         });
@@ -111,11 +115,15 @@ const CreateAgentModal = ({ isOpen, onClose, onCreated }) => {
         setError(null);
 
         try {
+            const capabilityNotes = [];
+            if (formData.specialties.trim()) capabilityNotes.push(`Capabilities: ${formData.specialties.trim()}`);
+            if (formData.apps.trim()) capabilityNotes.push(`Tools / apps: ${formData.apps.trim()}`);
+
             const body = {
                 label: formData.label.trim() || undefined,
                 identityMd: formData.identityMd.trim() || undefined,
                 soulMd: formData.soulMd.trim() || undefined,
-                agentsMd: formData.agentsMd.trim() || undefined,
+                agentsMd: [formData.agentsMd.trim(), capabilityNotes.length ? `## Capability Profile\n${capabilityNotes.map((line) => `- ${line}`).join('\n')}` : ''].filter(Boolean).join('\n\n') || undefined,
                 initialTask: formData.initialTask.trim() || undefined,
                 model: formData.model || undefined
             };
@@ -195,7 +203,7 @@ const CreateAgentModal = ({ isOpen, onClose, onCreated }) => {
 
                         <div>
                             <label htmlFor="spawn-identity" className="mb-1 block text-sm font-medium text-gray-700">
-                                IDENTITY.md
+                                Identity.md
                             </label>
                             <textarea
                                 id="spawn-identity"
@@ -234,6 +242,38 @@ const CreateAgentModal = ({ isOpen, onClose, onCreated }) => {
                                 className={`w-full rounded-xl border border-gray-300 px-3 py-2.5 shadow-sm transition-colors resize-y ${FOCUS_RING}`}
                                 placeholder="Operating rules, quality bar, escalation policy, and execution guidance."
                             />
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <label htmlFor="spawn-specialties" className="mb-1 block text-sm font-medium text-gray-700">
+                                    Specialties
+                                </label>
+                                <input
+                                    id="spawn-specialties"
+                                    type="text"
+                                    value={formData.specialties}
+                                    onChange={(e) => setFormData({ ...formData, specialties: e.target.value })}
+                                    className={`w-full rounded-xl border border-gray-300 px-3 py-2.5 shadow-sm transition-colors ${FOCUS_RING}`}
+                                    placeholder="e.g. research, writing, synthesis"
+                                />
+                                <p className="mt-1 text-xs text-gray-500">Used by Mission Manager to route tasks to the right owner.</p>
+                            </div>
+
+                            <div>
+                                <label htmlFor="spawn-apps" className="mb-1 block text-sm font-medium text-gray-700">
+                                    Tools / Apps
+                                </label>
+                                <input
+                                    id="spawn-apps"
+                                    type="text"
+                                    value={formData.apps}
+                                    onChange={(e) => setFormData({ ...formData, apps: e.target.value })}
+                                    className={`w-full rounded-xl border border-gray-300 px-3 py-2.5 shadow-sm transition-colors ${FOCUS_RING}`}
+                                    placeholder="e.g. gmail, notion, github"
+                                />
+                                <p className="mt-1 text-xs text-gray-500">Only list apps this agent should be trusted to use.</p>
+                            </div>
                         </div>
 
                         <div>
