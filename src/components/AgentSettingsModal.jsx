@@ -50,13 +50,13 @@ const AgentSettingsModal = ({ agent, isOpen, onClose, onUpdate }) => {
                 })
                 .then(fullConfig => {
                     const rawModel = fullConfig?.model;
-                    const modelPrimary = typeof rawModel === 'string' ? rawModel : (rawModel?.primary || '');
+                    const modelPrimary = typeof rawModel === 'string' ? rawModel : (rawModel?.primary || agent.model || '');
                     const modelFallbacks = Array.isArray(rawModel?.fallbacks) ? rawModel.fallbacks : [];
 
                     setFormData({
                         modelPrimary,
                         modelFallbacks,
-                        identityName: fullConfig.identity?.name || '',
+                        identityName: fullConfig.identity?.name || agent.label || agent.id,
                         identityEmoji: fullConfig.identity?.emoji || ''
                     });
                 })
@@ -183,11 +183,17 @@ const AgentSettingsModal = ({ agent, isOpen, onClose, onUpdate }) => {
                                 value={formData.identityEmoji}
                                 onChange={(e) => setFormData({ ...formData, identityEmoji: e.target.value })}
                                 autoComplete="off"
+                                disabled={agent.id !== 'main'}
                                 className={`w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm transition-colors ${FOCUS_RING}`}
                                 placeholder="e.g. 🤖"
                             />
                         </div>
                     </div>
+                    {agent.id !== 'main' && (
+                        <p className="-mt-2 text-xs text-gray-500">
+                            Subagents keep their own display name and primary model, but emoji and fallback models inherit the main agent defaults.
+                        </p>
+                    )}
 
                     <div>
                         <label htmlFor="agent-model-primary" className="block text-sm font-medium text-gray-700 mb-1">
@@ -233,6 +239,7 @@ const AgentSettingsModal = ({ agent, isOpen, onClose, onUpdate }) => {
                                     const values = Array.from(e.target.selectedOptions).map(o => o.value);
                                     setFormData({ ...formData, modelFallbacks: values.filter(v => v && v !== formData.modelPrimary) });
                                 }}
+                                disabled={agent.id !== 'main'}
                                 className={`w-full rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm transition-colors min-h-[120px] ${FOCUS_RING}`}
                             >
                                 {availableModels.map((model) => (
