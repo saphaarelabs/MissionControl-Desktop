@@ -191,7 +191,7 @@ const AgentSettingsModal = ({ agent, isOpen, onClose, onUpdate }) => {
                     </div>
                     {agent.id !== 'main' && (
                         <p className="-mt-2 text-xs text-gray-500">
-                            Subagents keep their own display name and primary model, but emoji and fallback models inherit the main agent defaults.
+                            Subagents keep their own display name, primary model, and fallback models. Emoji still inherits the main agent defaults.
                         </p>
                     )}
 
@@ -239,7 +239,6 @@ const AgentSettingsModal = ({ agent, isOpen, onClose, onUpdate }) => {
                                     const values = Array.from(e.target.selectedOptions).map(o => o.value);
                                     setFormData({ ...formData, modelFallbacks: values.filter(v => v && v !== formData.modelPrimary) });
                                 }}
-                                disabled={agent.id !== 'main'}
                                 className={`w-full rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm transition-colors min-h-[120px] ${FOCUS_RING}`}
                             >
                                 {availableModels.map((model) => (
