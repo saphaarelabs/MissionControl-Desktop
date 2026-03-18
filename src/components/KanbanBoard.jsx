@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiAuthFetch } from '../lib/apiBase';
-import { Plus, Calendar, MessageSquare, Cpu } from 'lucide-react';
+import { Plus, Calendar, MessageSquare, Cpu, Link2, AlertTriangle, FileText, Wrench } from 'lucide-react';
 
 const COLUMNS = [
     { id: 'inbox', title: 'TRIAGE', dot: 'bg-gray-400' },
@@ -96,6 +96,66 @@ const KanbanBoard = () => {
             || 'No notes yet.';
     };
 
+    const formatDetailTimestamp = (value) => {
+        if (!value) return '—';
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime())
+            ? String(value)
+            : parsed.toLocaleString([], {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+    };
+
+    const buildTaskComments = (task) => {
+        const narrative = Array.isArray(task?.metadata?.narrative) ? task.metadata.narrative : [];
+        return narrative
+            .filter((entry) => entry && typeof entry === 'object' && String(entry.text || '').trim())
+            .map((entry, index) => ({
+                id: `${entry.agentId || 'agent'}-${entry.ts || index}-${index}`,
+                agentId: entry.agentId || 'system',
+                text: String(entry.text || '').trim(),
+                ts: entry.ts || null,
+                role: entry.role || 'assistant',
+                kind: entry.role === 'agent_message'
+                    ? 'coordination'
+                    : entry.agentId === (task?.metadata?.managerAgentId || 'main')
+                        ? 'manager'
+                        : 'worker'
+            }));
+    };
+
+    const extractEvidenceUrls = (task) => {
+        const evidence = Array.isArray(task?.metadata?.lastRun?.evidence) ? task.metadata.lastRun.evidence : [];
+        return evidence
+            .flatMap((entry) => String(entry || '').match(/https?:\/\/[^\s)"'`]+/g) || [])
+            .filter(Boolean);
+    };
+
+    const renderCommentTone = (comment) => {
+        if (comment.kind === 'coordination') {
+            return {
+                wrapper: 'border-amber-100 bg-amber-50/70',
+                badge: 'bg-amber-100 text-amber-700',
+                icon: 'text-amber-600'
+            };
+        }
+        if (comment.kind === 'manager') {
+            return {
+                wrapper: 'border-blue-100 bg-blue-50/70',
+                badge: 'bg-blue-100 text-blue-700',
+                icon: 'text-blue-600'
+            };
+        }
+        return {
+            wrapper: 'border-slate-200 bg-white',
+            badge: 'bg-slate-100 text-slate-700',
+            icon: 'text-slate-600'
+        };
+    };
+
     const getColumnTasks = (columnId) => {
         const known = new Set(['completed', 'failed', 'review', 'picked_up', 'assigned', 'run_requested', 'scheduled', 'disabled', 'triage', 'in_progress', 'awaiting_connection', 'awaiting_approval', 'blocked']);
         const byStatus = (status) => tasks.filter(t => getTaskStatus(t) === status);
@@ -126,7 +186,6 @@ const KanbanBoard = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message,
-                    agentId: 'main',
                     priority,
                     source: 'kanban',
                     name: `Task: ${message.slice(0, 60)}${message.length > 60 ? '…' : ''}`
@@ -369,7 +428,6 @@ const KanbanBoard = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Hover highlight line */}
                                             <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                         </div>
                                     ))}
@@ -449,15 +507,84 @@ const KanbanBoard = () => {
                                             </div>
                                         </div>
 
+                                        {(Array.isArray(detailsTask?.metadata?.lastRun?.evidence) && detailsTask.metadata.lastRun.evidence.length > 0)
+                                            || (Array.isArray(detailsTask?.metadata?.lastRun?.needs) && detailsTask.metadata.lastRun.needs.length > 0)
+                                            || (Array.isArray(detailsTask?.metadata?.lastRun?.followUps) && detailsTask.metadata.lastRun.followUps.length > 0)
+                                            || (Array.isArray(detailsTask?.metadata?.log) && detailsTask.metadata.log.length > 0) ? (
+                                                <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+                                                    {Array.isArray(detailsTask?.metadata?.lastRun?.evidence) && detailsTask.metadata.lastRun.evidence.length > 0 && (
+                                                        <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
+                                                            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+                                                                <Link2 className="h-3.5 w-3.5" />
+                                                                Evidence
+                                                            </div>
+                                                            <div className="mt-3 space-y-2">
+                                                                {detailsTask.metadata.lastRun.evidence.map((entry, idx) => (
+                                                                    <div key={idx} className="rounded-lg border border-emerald-100 bg-white/80 px-3 py-2 text-xs text-emerald-900 break-words">
+                                                                        {String(entry)}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            {extractEvidenceUrls(detailsTask).length > 0 && (
+                                                                <div className="mt-3 space-y-2">
+                                                                    {extractEvidenceUrls(detailsTask).map((url, idx) => (
+                                                                        <a
+                                                                            key={`${url}-${idx}`}
+                                                                            href={url}
+                                                                            target="_blank"
+                                                                            rel="noreferrer"
+                                                                            className="block rounded-lg border border-emerald-100 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50"
+                                                                        >
+                                                                            {url}
+                                                                        </a>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {Array.isArray(detailsTask?.metadata?.lastRun?.needs) && detailsTask.metadata.lastRun.needs.length > 0 && (
+                                                        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+                                                            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-700">
+                                                                <AlertTriangle className="h-3.5 w-3.5" />
+                                                                Needs / blockers
+                                                            </div>
+                                                            <div className="mt-3 space-y-2">
+                                                                {detailsTask.metadata.lastRun.needs.map((entry, idx) => (
+                                                                    <div key={idx} className="rounded-lg border border-amber-100 bg-white/80 px-3 py-2 text-xs text-amber-900">
+                                                                        {String(entry)}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {Array.isArray(detailsTask?.metadata?.lastRun?.followUps) && detailsTask.metadata.lastRun.followUps.length > 0 && (
+                                                        <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-4">
+                                                            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-sky-700">
+                                                                <FileText className="h-3.5 w-3.5" />
+                                                                Follow-ups
+                                                            </div>
+                                                            <div className="mt-3 space-y-2">
+                                                                {detailsTask.metadata.lastRun.followUps.map((entry, idx) => (
+                                                                    <div key={idx} className="rounded-lg border border-sky-100 bg-white/80 px-3 py-2 text-xs text-sky-900">
+                                                                        {String(entry)}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : null}
+
                                         <div>
                                             <div className="text-xs font-semibold text-gray-700 flex items-center gap-2">
                                                 <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
-                                                Agents Comments
+                                                Agent timeline
                                             </div>
                                             <div className="mt-2 space-y-3 max-h-[400px] overflow-y-auto pr-1">
                                                 {(detailsTask?.metadata?.lastRun?.summary || detailsTask?.metadata?.lastDecision?.reason || (Array.isArray(detailsTask?.metadata?.narrative) && detailsTask.metadata.narrative.length > 0)) ? (
                                                     <div className="space-y-3">
-                                                        {/* High-level Decision/Summary Comment */}
                                                         {(detailsTask?.metadata?.lastDecision?.reason || detailsTask?.metadata?.lastRun?.summary) && (
                                                             <div className="flex flex-col gap-1 rounded-xl bg-blue-600 p-4 shadow-md">
                                                                 <div className="flex items-center justify-between gap-4 border-b border-blue-500/50 pb-2 mb-1">
@@ -484,43 +611,35 @@ const KanbanBoard = () => {
                                                             </div>
                                                         )}
 
-                                                        {/* Narrative History */}
-                                                        {Array.isArray(detailsTask?.metadata?.narrative) && detailsTask.metadata.narrative.map((n, idx) => (
-                                                            <div
-                                                                key={idx}
-                                                                className={`flex flex-col gap-1 rounded-xl border p-3 shadow-sm transition-all ${
-                                                                    n.role === 'agent_message'
-                                                                        ? 'border-amber-100 bg-amber-50/60 hover:border-amber-200 hover:bg-amber-50'
-                                                                        : 'border-slate-100 bg-slate-50 hover:border-blue-100 hover:bg-blue-50/30'
-                                                                }`}
-                                                            >
-                                                                <div className="flex items-center justify-between gap-4">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className={`h-4 w-4 rounded-full flex items-center justify-center ${
-                                                                            n.role === 'agent_message' ? 'bg-amber-100' : 'bg-blue-100'
-                                                                        }`}>
-                                                                            <Cpu className={`h-2.5 w-2.5 ${n.role === 'agent_message' ? 'text-amber-600' : 'text-blue-600'}`} />
-                                                                        </div>
-                                                                        <span className={`text-[10px] font-extrabold uppercase tracking-widest ${
-                                                                            n.role === 'agent_message' ? 'text-amber-700' : 'text-blue-700'
-                                                                        }`}>
-                                                                            {n.agentId || 'system'}
-                                                                        </span>
-                                                                        {n.role === 'agent_message' && (
-                                                                            <span className="rounded-full bg-white/80 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-amber-700">
-                                                                                Inter-agent
+                                                        {buildTaskComments(detailsTask).map((comment) => {
+                                                            const tone = renderCommentTone(comment);
+                                                            return (
+                                                                <div
+                                                                    key={comment.id}
+                                                                    className={`flex flex-col gap-2 rounded-xl border p-4 shadow-sm transition-all ${tone.wrapper}`}
+                                                                >
+                                                                    <div className="flex items-center justify-between gap-4">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className={`h-5 w-5 rounded-full bg-white/90 flex items-center justify-center ${tone.icon}`}>
+                                                                                <Cpu className="h-3 w-3" />
+                                                                            </div>
+                                                                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-700">
+                                                                                {comment.agentId}
                                                                             </span>
-                                                                        )}
+                                                                            <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] ${tone.badge}`}>
+                                                                                {comment.kind === 'coordination' ? 'Inter-agent' : comment.kind}
+                                                                            </span>
+                                                                        </div>
+                                                                        <span className="text-[10px] font-medium text-slate-400 tabular-nums">
+                                                                            {formatDetailTimestamp(comment.ts)}
+                                                                        </span>
                                                                     </div>
-                                                                    <span className="text-[9px] font-medium text-slate-400 tabular-nums">
-                                                                        {n.ts ? new Date(n.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-                                                                    </span>
+                                                                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                                                                        {comment.text}
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-sm text-slate-700 leading-relaxed font-medium">
-                                                                    {n.text || '—'}
-                                                                </div>
-                                                            </div>
-                                                        ))}
+                                                            );
+                                                        })}
                                                     </div>
                                                 ) : (
                                                     <div className="flex flex-col items-center justify-center py-10 rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
@@ -531,6 +650,44 @@ const KanbanBoard = () => {
                                                 )}
                                             </div>
                                         </div>
+
+                                        {Array.isArray(detailsTask?.metadata?.log) && detailsTask.metadata.log.length > 0 && (
+                                            <div>
+                                                <div className="text-xs font-semibold text-gray-700 flex items-center gap-2">
+                                                    <Wrench className="w-3.5 h-3.5 text-slate-600" />
+                                                    Tool trace
+                                                </div>
+                                                <div className="mt-2 space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                                                    {detailsTask.metadata.log.map((entry, idx) => (
+                                                        <div key={`${entry.ts || idx}-${idx}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500">
+                                                                    {entry.toolName || entry.role || 'tool'}
+                                                                </span>
+                                                                <span className="text-[10px] font-medium text-slate-400">
+                                                                    {formatDetailTimestamp(entry.ts)}
+                                                                </span>
+                                                            </div>
+                                                            <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-slate-900 px-3 py-2 text-[11px] leading-5 text-slate-100">
+                                                                {entry.text}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {String(detailsTask?.metadata?.lastRun?.output || '').trim() && (
+                                            <div>
+                                                <div className="text-xs font-semibold text-gray-700 flex items-center gap-2">
+                                                    <FileText className="w-3.5 h-3.5 text-slate-600" />
+                                                    Raw agent output
+                                                </div>
+                                                <div className="mt-2 max-h-[260px] overflow-y-auto rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 text-[11px] leading-5 text-slate-100 whitespace-pre-wrap break-words">
+                                                    {String(detailsTask.metadata.lastRun.output)}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

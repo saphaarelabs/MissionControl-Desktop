@@ -37,9 +37,10 @@ export const BroadcastProvider = ({ children }) => {
             const list = data.agents || [];
             setAgents(list);
 
-            // Only select agents that are currently 'online' by default
-            const onlineIds = list.filter(a => a.status === 'online').map(a => a.id);
-            setSelectedAgents(onlineIds);
+            const preferredIds = list
+                .filter((agent) => agent.id !== 'main')
+                .map((agent) => agent.id);
+            setSelectedAgents(preferredIds.length ? preferredIds : list.map((agent) => agent.id));
         } catch (error) {
             console.error('Failed to fetch agents:', error);
         }
@@ -76,7 +77,12 @@ export const BroadcastProvider = ({ children }) => {
         if (e) e.preventDefault();
         const isTask = e?.target?.id === 'task-form';
         const content = isTask ? instruction : message;
-        if (!content.trim() || selectedAgents.length === 0) return;
+        const targetAgents = selectedAgents.length > 0
+            ? selectedAgents
+            : (agents.filter((agent) => agent.id !== 'main').map((agent) => agent.id).length
+                ? agents.filter((agent) => agent.id !== 'main').map((agent) => agent.id)
+                : agents.map((agent) => agent.id));
+        if (!content.trim() || targetAgents.length === 0) return;
 
         setSending(true);
         setCreated([]);
@@ -84,8 +90,8 @@ export const BroadcastProvider = ({ children }) => {
 
         try {
             const body = e?.target?.id === 'task-form'
-                ? { message: instruction, agentIds: selectedAgents }
-                : { message, agentIds: selectedAgents };
+                ? { message: instruction, agentIds: targetAgents }
+                : { message, agentIds: targetAgents };
 
             const response = await apiAuthFetch('/api/broadcast', {
                 method: 'POST',

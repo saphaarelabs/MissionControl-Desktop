@@ -3,13 +3,18 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { apiAuthFetch } from '../lib/apiBase';
 import {
     BrainCircuit,
+    CheckCircle2,
+    ExternalLink,
     FileCode2,
     FolderKanban,
+    Link2,
     MessageSquareMore,
+    PlugZap,
     RefreshCw,
     Save,
     ShieldCheck,
     Sparkles,
+    Unplug,
 } from 'lucide-react';
 import { isDesktopApp, openExternal } from '../lib/desktop';
 
@@ -23,6 +28,13 @@ const TABS = [
         description: 'Provider auth, enabled models, and primary routing.',
         eyebrow: 'AI Routing',
         icon: BrainCircuit,
+    },
+    {
+        id: 'integrations',
+        label: 'Integrations',
+        description: 'Let each user connect their own Notion, GitHub, Slack, Gmail, and other app accounts.',
+        eyebrow: 'Apps',
+        icon: PlugZap,
     },
     {
         id: 'channels',
@@ -54,10 +66,27 @@ const TABS = [
     }
 ];
 
+const DEFAULT_SETTINGS_TAB = 'models';
+
+function resolveInitialSettingsTab() {
+    if (typeof window === 'undefined') return DEFAULT_SETTINGS_TAB;
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get('tab');
+    return TABS.some((tab) => tab.id === requested) ? requested : DEFAULT_SETTINGS_TAB;
+}
+
 const Settings = () => {
-    const [activeTab, setActiveTab] = useState('models');
+    const [activeTab, setActiveTab] = useState(resolveInitialSettingsTab);
     const activeTabMeta = TABS.find((tab) => tab.id === activeTab) || TABS[0];
     const ActiveIcon = activeTabMeta.icon;
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('integration') || params.get('status') || params.get('tab') === 'integrations') {
+            setActiveTab('integrations');
+        }
+    }, []);
 
     return (
         <div className="space-y-6">
@@ -74,10 +103,14 @@ const Settings = () => {
                                 Manage model access, channels, workspace instructions, and runtime files from one place. The goal here is speed with enough structure that risky changes stay obvious.
                             </p>
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                             <div className="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3">
                                 <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Provider setup</div>
                                 <div className="mt-2 text-sm font-semibold text-slate-700">Auth, models, and primary routing</div>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">App integrations</div>
+                                <div className="mt-2 text-sm font-semibold text-slate-700">Per-user Notion, GitHub, Slack, Gmail, and more</div>
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3">
                                 <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Channels</div>
@@ -161,6 +194,7 @@ const Settings = () => {
                             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Current focus</div>
                             <div className="mt-1 text-sm font-semibold text-slate-700">
                                 {activeTab === 'models' && 'Set credentials first, then enable models, then save the primary route.'}
+                                {activeTab === 'integrations' && 'Connect user-owned apps first so tasks can route to real tools instead of blocking.'}
                                 {activeTab === 'channels' && 'Use direct channel setup here instead of editing gateway files by hand.'}
                                 {activeTab === 'soul' && 'Keep operator guidance clean and durable so future sessions stay consistent.'}
                                 {activeTab === 'workspace' && 'Use this for targeted workspace file edits without opening the terminal.'}
@@ -171,6 +205,7 @@ const Settings = () => {
 
                     <div className="min-w-0">
                         {activeTab === 'models' && <ModelsTab />}
+                        {activeTab === 'integrations' && <IntegrationsTab />}
                         {activeTab === 'channels' && <ChannelsTab />}
                         {activeTab === 'soul' && <SoulTab />}
                         {activeTab === 'workspace' && <WorkspaceFileTab />}
@@ -208,6 +243,300 @@ const PROVIDERS = [
     { key: 'deepgram', label: 'Deepgram (transcription)' },
     { key: 'custom', label: '+ Custom Provider' }
 ];
+
+const integrationStatusTone = (integration) => {
+    if (integration?.isConnected) {
+        return {
+            label: 'Connected',
+            className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+        };
+    }
+
+    if (['INITIATED', 'INITIALIZING'].includes(String(integration?.connectionStatus || ''))) {
+        return {
+            label: 'Pending',
+            className: 'border-amber-200 bg-amber-50 text-amber-700',
+        };
+    }
+
+    if (integration?.isNoAuth) {
+        return {
+            label: 'No auth required',
+            className: 'border-slate-200 bg-slate-100 text-slate-700',
+        };
+    }
+
+    return {
+        label: 'Not connected',
+        className: 'border-slate-200 bg-slate-50 text-slate-600',
+    };
+};
+
+const IntegrationsTab = () => {
+    const [items, setItems] = useState([]);
+    const [summary, setSummary] = useState({ total: 0, connected: 0, pending: 0 });
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [busyToolkit, setBusyToolkit] = useState('');
+    const [busyAccountId, setBusyAccountId] = useState('');
+    const [error, setError] = useState('');
+    const [status, setStatus] = useState('');
+
+    const loadIntegrations = async ({ silent = false } = {}) => {
+        if (!silent) setLoading(true);
+        if (silent) setRefreshing(true);
+        try {
+            const response = await apiAuthFetch('/api/integrations');
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to load app integrations');
+            }
+            setItems(Array.isArray(data.integrations) ? data.integrations : []);
+            setSummary(data.summary || { total: 0, connected: 0, pending: 0 });
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        loadIntegrations();
+
+        if (typeof window === 'undefined') return;
+        const url = new URL(window.location.href);
+        const statusParam = url.searchParams.get('status');
+        const integrationParam = url.searchParams.get('integration');
+
+        if (statusParam === 'success') {
+            setStatus(`${integrationParam || 'App'} connected. Refreshing connection state…`);
+        } else if (statusParam === 'failed') {
+            setError(`${integrationParam || 'App'} connection did not complete. Please try again.`);
+        }
+
+        if (statusParam || integrationParam) {
+            url.searchParams.delete('status');
+            url.searchParams.delete('integration');
+            url.searchParams.set('tab', 'integrations');
+            window.history.replaceState({}, document.title, url.toString());
+            if (statusParam === 'success') {
+                loadIntegrations({ silent: true });
+            }
+        }
+    }, []);
+
+    const startConnection = async (toolkit) => {
+        setBusyToolkit(toolkit.slug);
+        setError('');
+        setStatus('');
+        try {
+            const payload = {
+                toolkit: toolkit.slug,
+                callbackUrl: isDesktopApp() ? undefined : (() => {
+                    const current = new URL(window.location.href);
+                    current.searchParams.set('tab', 'integrations');
+                    current.searchParams.set('integration', toolkit.slug);
+                    return current.toString();
+                })(),
+            };
+
+            const response = await apiAuthFetch('/api/integrations/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || `Failed to connect ${toolkit.name}`);
+            }
+
+            if (!data.redirectUrl) {
+                setStatus(data.message || `${toolkit.name} is already connected.`);
+                await loadIntegrations({ silent: true });
+                return;
+            }
+
+            if (isDesktopApp()) {
+                await openExternal(data.redirectUrl);
+                setStatus(`Continue ${toolkit.name} connection in your browser, then come back here and refresh.`);
+                return;
+            }
+
+            window.location.assign(data.redirectUrl);
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setBusyToolkit('');
+        }
+    };
+
+    const disconnectIntegration = async (toolkit) => {
+        if (!toolkit.connectedAccountId) return;
+        setBusyAccountId(toolkit.connectedAccountId);
+        setError('');
+        setStatus('');
+        try {
+            const response = await apiAuthFetch(`/api/integrations/${encodeURIComponent(toolkit.connectedAccountId)}`, {
+                method: 'DELETE',
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || `Failed to disconnect ${toolkit.name}`);
+            }
+            setStatus(`${toolkit.name} disconnected.`);
+            await loadIntegrations({ silent: true });
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setBusyAccountId('');
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
+                <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(135deg,_#f8fbff_0%,_#ffffff_45%,_#eef6ff_100%)] p-5">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">Per-user app connections</div>
+                            <h3 className="mt-2 text-xl font-black tracking-tight text-slate-900">Connect the user’s own accounts, not ours</h3>
+                            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                                These integrations are scoped to the signed-in Mission Control user. Once connected, the manager and specialist agents can use the user’s own Notion, GitHub, Slack, Gmail, and other accounts when a workflow genuinely needs them.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => loadIntegrations({ silent: true })}
+                            className={`inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 ${FOCUS_RING}`}
+                        >
+                            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Connected</div>
+                        <div className="mt-2 text-2xl font-black text-slate-900">{summary.connected || 0}</div>
+                        <div className="mt-1 text-xs text-slate-500">Ready for agent use</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Pending</div>
+                        <div className="mt-2 text-2xl font-black text-slate-900">{summary.pending || 0}</div>
+                        <div className="mt-1 text-xs text-slate-500">Waiting on user auth</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Catalog</div>
+                        <div className="mt-2 text-2xl font-black text-slate-900">{summary.total || items.length}</div>
+                        <div className="mt-1 text-xs text-slate-500">High-value apps to start</div>
+                    </div>
+                </div>
+            </div>
+
+            {error && (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
+            )}
+
+            {status && (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{status}</div>
+            )}
+
+            {loading ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-10 text-sm text-slate-500">
+                    Loading integrations…
+                </div>
+            ) : (
+                <div className="grid gap-4 xl:grid-cols-2">
+                    {items.map((integration) => {
+                        const tone = integrationStatusTone(integration);
+                        const isConnecting = busyToolkit === integration.slug;
+                        const isDisconnecting = busyAccountId === integration.connectedAccountId;
+
+                        return (
+                            <div key={integration.slug} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{integration.category}</div>
+                                        <div className="mt-2 flex items-center gap-2">
+                                            <h3 className="text-lg font-black text-slate-900">{integration.name}</h3>
+                                            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${tone.className}`}>
+                                                {tone.label}
+                                            </span>
+                                        </div>
+                                        <p className="mt-2 text-sm leading-6 text-slate-600">{integration.description}</p>
+                                    </div>
+                                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
+                                        <Link2 className="h-5 w-5" />
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Connection state</div>
+                                        <div className="mt-1 text-sm font-semibold text-slate-800">
+                                            {integration.connectionStatus || (integration.isConnected ? 'ACTIVE' : 'DISCONNECTED')}
+                                        </div>
+                                    </div>
+                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Auth mode</div>
+                                        <div className="mt-1 text-sm font-semibold text-slate-800">
+                                            {integration.authMode || (integration.isNoAuth ? 'No auth' : 'Managed OAuth')}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 flex flex-wrap items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => startConnection(integration)}
+                                        disabled={isConnecting}
+                                        className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white transition ${FOCUS_RING} ${
+                                            isConnecting ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700'
+                                        }`}
+                                    >
+                                        <ExternalLink className="h-4 w-4" />
+                                        {integration.isConnected ? 'Reconnect' : 'Connect account'}
+                                    </button>
+
+                                    {integration.connectedAccountId && (
+                                        <button
+                                            type="button"
+                                            onClick={() => disconnectIntegration(integration)}
+                                            disabled={isDisconnecting}
+                                            className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${FOCUS_RING} ${
+                                                isDisconnecting
+                                                    ? 'border-slate-200 bg-slate-100 text-slate-400'
+                                                    : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <Unplug className="h-4 w-4" />
+                                            Disconnect
+                                        </button>
+                                    )}
+
+                                    {integration.isConnected && (
+                                        <span className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700">
+                                            <CheckCircle2 className="h-4 w-4" />
+                                            Ready for agent workflows
+                                        </span>
+                                    )}
+                                </div>
+
+                                {integration.connectedAccountId && (
+                                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                                        Connected account ID: <span className="font-semibold text-slate-700">{integration.connectedAccountId}</span>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const ModelsTab = () => {
     const location = useLocation();
