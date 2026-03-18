@@ -20,6 +20,8 @@ const KanbanBoard = () => {
     const [detailsLoading, setDetailsLoading] = useState(false);
     const [detailsError, setDetailsError] = useState('');
     const [detailsTask, setDetailsTask] = useState(null);
+    const [detailsActionLoading, setDetailsActionLoading] = useState(false);
+    const [detailsActionError, setDetailsActionError] = useState('');
     const [newMessage, setNewMessage] = useState('');
     const [newPriority, setNewPriority] = useState(3);
 
@@ -207,6 +209,7 @@ const KanbanBoard = () => {
         setDetailsOpen(true);
         setDetailsLoading(true);
         setDetailsError('');
+        setDetailsActionError('');
         setDetailsTask(null);
         try {
             const res = await apiAuthFetch(`/api/tasks?ids=${encodeURIComponent(String(task.id))}&includeNarrative=true&includeLog=true&limit=1&t=${Date.now()}`);
@@ -229,7 +232,32 @@ const KanbanBoard = () => {
         setDetailsOpen(false);
         setDetailsError('');
         setDetailsLoading(false);
+        setDetailsActionLoading(false);
+        setDetailsActionError('');
         setDetailsTask(null);
+    };
+
+    const handleTaskAction = async (action) => {
+        if (!detailsTask?.id) return;
+        setDetailsActionLoading(true);
+        setDetailsActionError('');
+        try {
+            const response = await apiAuthFetch(`/api/tasks/${encodeURIComponent(String(detailsTask.id))}/action`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data?.error || `Task action failed: ${response.status}`);
+            }
+            await fetchTasks();
+            await openDetails(detailsTask);
+        } catch (error) {
+            setDetailsActionError(error?.message || 'Task action failed');
+        } finally {
+            setDetailsActionLoading(false);
+        }
     };
 
     if (loading) {
@@ -506,6 +534,55 @@ const KanbanBoard = () => {
                                                 {detailsTask?.payload?.message || detailsTask?.metadata?.message || '—'}
                                             </div>
                                         </div>
+
+                                        {detailsActionError && (
+                                            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                                {detailsActionError}
+                                            </div>
+                                        )}
+
+                                        {['awaiting_approval', 'awaiting_connection', 'blocked', 'failed'].includes(getTaskStatus(detailsTask)) && (
+                                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                                    Task actions
+                                                </div>
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {getTaskStatus(detailsTask) === 'awaiting_approval' && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleTaskAction('approve')}
+                                                                disabled={detailsLoading || detailsActionLoading}
+                                                                className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            >
+                                                                {detailsActionLoading ? 'Working…' : 'Approve And Continue'}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleTaskAction('reject')}
+                                                                disabled={detailsLoading || detailsActionLoading}
+                                                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    {['awaiting_connection', 'blocked', 'failed'].includes(getTaskStatus(detailsTask)) && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleTaskAction('retry')}
+                                                            disabled={detailsLoading || detailsActionLoading}
+                                                            className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            {detailsActionLoading ? 'Working…' : 'Retry Task'}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <p className="mt-2 text-xs text-slate-500">
+                                                    Use these controls to resume or reject the current task without creating a separate broadcast message.
+                                                </p>
+                                            </div>
+                                        )}
 
                                         {(Array.isArray(detailsTask?.metadata?.lastRun?.evidence) && detailsTask.metadata.lastRun.evidence.length > 0)
                                             || (Array.isArray(detailsTask?.metadata?.lastRun?.needs) && detailsTask.metadata.lastRun.needs.length > 0)
