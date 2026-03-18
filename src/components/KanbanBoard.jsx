@@ -22,6 +22,7 @@ const KanbanBoard = () => {
     const [detailsTask, setDetailsTask] = useState(null);
     const [detailsActionLoading, setDetailsActionLoading] = useState(false);
     const [detailsActionError, setDetailsActionError] = useState('');
+    const [detailsActionNote, setDetailsActionNote] = useState('');
     const [newMessage, setNewMessage] = useState('');
     const [newPriority, setNewPriority] = useState(3);
 
@@ -210,6 +211,7 @@ const KanbanBoard = () => {
         setDetailsLoading(true);
         setDetailsError('');
         setDetailsActionError('');
+        setDetailsActionNote('');
         setDetailsTask(null);
         try {
             const res = await apiAuthFetch(`/api/tasks?ids=${encodeURIComponent(String(task.id))}&includeNarrative=true&includeLog=true&limit=1&t=${Date.now()}`);
@@ -234,6 +236,7 @@ const KanbanBoard = () => {
         setDetailsLoading(false);
         setDetailsActionLoading(false);
         setDetailsActionError('');
+        setDetailsActionNote('');
         setDetailsTask(null);
     };
 
@@ -245,12 +248,16 @@ const KanbanBoard = () => {
             const response = await apiAuthFetch(`/api/tasks/${encodeURIComponent(String(detailsTask.id))}/action`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action })
+                body: JSON.stringify({
+                    action,
+                    note: String(detailsActionNote || '').trim()
+                })
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
                 throw new Error(data?.error || `Task action failed: ${response.status}`);
             }
+            setDetailsActionNote('');
             await fetchTasks();
             await openDetails(detailsTask);
         } catch (error) {
@@ -259,6 +266,8 @@ const KanbanBoard = () => {
             setDetailsActionLoading(false);
         }
     };
+
+    const actionableStatus = detailsTask ? getTaskStatus(detailsTask) : '';
 
     if (loading) {
         return (
@@ -541,19 +550,49 @@ const KanbanBoard = () => {
                                             </div>
                                         )}
 
-                                        {['awaiting_approval', 'awaiting_connection', 'blocked', 'failed'].includes(getTaskStatus(detailsTask)) && (
-                                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                                                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                                                    Task actions
+                                        {['awaiting_approval', 'awaiting_connection', 'blocked', 'failed'].includes(actionableStatus) && (
+                                            <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100/80 p-4 shadow-sm">
+                                                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                                    <div>
+                                                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                                            Action required
+                                                        </div>
+                                                        <div className="mt-2 text-sm font-semibold text-slate-900">
+                                                            {actionableStatus === 'awaiting_approval' && 'This task is paused until an operator approves or rejects it.'}
+                                                            {actionableStatus === 'awaiting_connection' && 'This task is waiting on a connection. Retry it after the app is connected.'}
+                                                            {actionableStatus === 'blocked' && 'This task is blocked. Retry it after you adjust the setup or reject it if it should stop here.'}
+                                                            {actionableStatus === 'failed' && 'This run failed. Retry it after fixing the underlying problem.'}
+                                                        </div>
+                                                        <p className="mt-1 text-xs text-slate-500">
+                                                            You can move this task forward here without creating a separate broadcast message.
+                                                        </p>
+                                                    </div>
+                                                    <div className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${getStatusTone(actionableStatus)}`}>
+                                                        {formatStatusLabel(actionableStatus)}
+                                                    </div>
                                                 </div>
-                                                <div className="mt-3 flex flex-wrap gap-2">
-                                                    {getTaskStatus(detailsTask) === 'awaiting_approval' && (
+
+                                                <div className="mt-4">
+                                                    <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                                        Operator note
+                                                    </label>
+                                                    <textarea
+                                                        value={detailsActionNote}
+                                                        onChange={(event) => setDetailsActionNote(event.target.value)}
+                                                        rows={3}
+                                                        placeholder="Optional note for the task log. Example: Approved after reviewing the draft."
+                                                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                                                    />
+                                                </div>
+
+                                                <div className="mt-4 flex flex-wrap gap-2">
+                                                    {actionableStatus === 'awaiting_approval' && (
                                                         <>
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleTaskAction('approve')}
                                                                 disabled={detailsLoading || detailsActionLoading}
-                                                                className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                                className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                                                             >
                                                                 {detailsActionLoading ? 'Working…' : 'Approve And Continue'}
                                                             </button>
@@ -561,26 +600,23 @@ const KanbanBoard = () => {
                                                                 type="button"
                                                                 onClick={() => handleTaskAction('reject')}
                                                                 disabled={detailsLoading || detailsActionLoading}
-                                                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                                                             >
-                                                                Reject
+                                                                Reject Task
                                                             </button>
                                                         </>
                                                     )}
-                                                    {['awaiting_connection', 'blocked', 'failed'].includes(getTaskStatus(detailsTask)) && (
+                                                    {['awaiting_connection', 'blocked', 'failed'].includes(actionableStatus) && (
                                                         <button
                                                             type="button"
                                                             onClick={() => handleTaskAction('retry')}
                                                             disabled={detailsLoading || detailsActionLoading}
-                                                            className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                                                         >
                                                             {detailsActionLoading ? 'Working…' : 'Retry Task'}
                                                         </button>
                                                     )}
                                                 </div>
-                                                <p className="mt-2 text-xs text-slate-500">
-                                                    Use these controls to resume or reject the current task without creating a separate broadcast message.
-                                                </p>
                                             </div>
                                         )}
 
@@ -729,41 +765,51 @@ const KanbanBoard = () => {
                                         </div>
 
                                         {Array.isArray(detailsTask?.metadata?.log) && detailsTask.metadata.log.length > 0 && (
-                                            <div>
-                                                <div className="text-xs font-semibold text-gray-700 flex items-center gap-2">
-                                                    <Wrench className="w-3.5 h-3.5 text-slate-600" />
-                                                    Tool trace
-                                                </div>
-                                                <div className="mt-2 space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                                                    {detailsTask.metadata.log.map((entry, idx) => (
-                                                        <div key={`${entry.ts || idx}-${idx}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                                            <div className="flex items-center justify-between gap-3">
-                                                                <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500">
-                                                                    {entry.toolName || entry.role || 'tool'}
-                                                                </span>
-                                                                <span className="text-[10px] font-medium text-slate-400">
-                                                                    {formatDetailTimestamp(entry.ts)}
-                                                                </span>
+                                            <details className="group rounded-xl border border-slate-200 bg-white">
+                                                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                                                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                                        <Wrench className="h-3.5 w-3.5 text-slate-600" />
+                                                        Tool trace
+                                                    </div>
+                                                    <span className="text-[11px] text-slate-400 transition group-open:rotate-180">⌄</span>
+                                                </summary>
+                                                <div className="border-t border-slate-100 px-4 py-3">
+                                                    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                                                        {detailsTask.metadata.log.map((entry, idx) => (
+                                                            <div key={`${entry.ts || idx}-${idx}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                                                <div className="flex items-center justify-between gap-3">
+                                                                    <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500">
+                                                                        {entry.toolName || entry.role || 'tool'}
+                                                                    </span>
+                                                                    <span className="text-[10px] font-medium text-slate-400">
+                                                                        {formatDetailTimestamp(entry.ts)}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-slate-900 px-3 py-2 text-[11px] leading-5 text-slate-100">
+                                                                    {entry.text}
+                                                                </div>
                                                             </div>
-                                                            <div className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-slate-900 px-3 py-2 text-[11px] leading-5 text-slate-100">
-                                                                {entry.text}
-                                                            </div>
-                                                        </div>
-                                                    ))}
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            </details>
                                         )}
 
                                         {String(detailsTask?.metadata?.lastRun?.output || '').trim() && (
-                                            <div>
-                                                <div className="text-xs font-semibold text-gray-700 flex items-center gap-2">
-                                                    <FileText className="w-3.5 h-3.5 text-slate-600" />
-                                                    Raw agent output
+                                            <details className="group rounded-xl border border-slate-200 bg-white">
+                                                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                                                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                                        <FileText className="h-3.5 w-3.5 text-slate-600" />
+                                                        Raw agent output
+                                                    </div>
+                                                    <span className="text-[11px] text-slate-400 transition group-open:rotate-180">⌄</span>
+                                                </summary>
+                                                <div className="border-t border-slate-100 px-4 py-3">
+                                                    <div className="max-h-[260px] overflow-y-auto rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 text-[11px] leading-5 text-slate-100 whitespace-pre-wrap break-words">
+                                                        {String(detailsTask.metadata.lastRun.output)}
+                                                    </div>
                                                 </div>
-                                                <div className="mt-2 max-h-[260px] overflow-y-auto rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 text-[11px] leading-5 text-slate-100 whitespace-pre-wrap break-words">
-                                                    {String(detailsTask.metadata.lastRun.output)}
-                                                </div>
-                                            </div>
+                                            </details>
                                         )}
                                     </div>
                                 )}
