@@ -11,7 +11,9 @@ const AgentSettingsModal = ({ agent, isOpen, onClose, onUpdate }) => {
         modelPrimary: '',
         modelFallbacks: [],
         identityName: '',
-        identityEmoji: ''
+        identityEmoji: '',
+        inheritsDefault: false,
+        defaultPrimary: ''
     });
     const [availableModels, setAvailableModels] = useState([]);
     const [loadingModels, setLoadingModels] = useState(false);
@@ -50,14 +52,19 @@ const AgentSettingsModal = ({ agent, isOpen, onClose, onUpdate }) => {
                 })
                 .then(fullConfig => {
                     const rawModel = fullConfig?.model;
-                    const modelPrimary = typeof rawModel === 'string' ? rawModel : (rawModel?.primary || agent.model || '');
-                    const modelFallbacks = Array.isArray(rawModel?.fallbacks) ? rawModel.fallbacks : [];
+                    const inherited = Boolean(rawModel?.inherited) && agent.id !== 'main';
+                    const resolvedPrimary = typeof rawModel === 'string' ? rawModel : (rawModel?.primary || agent.model || '');
+                    const modelPrimary = inherited ? '' : resolvedPrimary;
+                    const modelFallbacks = inherited ? [] : (Array.isArray(rawModel?.fallbacks) ? rawModel.fallbacks : []);
+                    const defaultPrimary = rawModel?.defaultPrimary || '';
 
                     setFormData({
                         modelPrimary,
                         modelFallbacks,
                         identityName: fullConfig.identity?.name || agent.label || agent.id,
-                        identityEmoji: fullConfig.identity?.emoji || ''
+                        identityEmoji: fullConfig.identity?.emoji || '',
+                        inheritsDefault: inherited,
+                        defaultPrimary
                     });
                 })
                 .catch(err => console.error('Failed to load full config', err));
@@ -208,16 +215,30 @@ const AgentSettingsModal = ({ agent, isOpen, onClose, onUpdate }) => {
                                 id="agent-model-primary"
                                 name="modelPrimary"
                                 value={formData.modelPrimary}
-                                onChange={(e) => setFormData({ ...formData, modelPrimary: e.target.value, modelFallbacks: formData.modelFallbacks.filter(fb => fb !== e.target.value) })}
+                                onChange={(e) => setFormData({
+                                    ...formData,
+                                    modelPrimary: e.target.value,
+                                    modelFallbacks: formData.modelFallbacks.filter((fb) => fb !== e.target.value),
+                                    inheritsDefault: e.target.value === '' && agent.id !== 'main'
+                                })}
                                 className={`w-full rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm transition-colors ${FOCUS_RING}`}
                             >
-                                <option value="">Select a model…</option>
+                                <option value="">
+                                    {agent.id === 'main'
+                                        ? 'Select a model…'
+                                        : `Inherit workspace default${formData.defaultPrimary ? ` (${formData.defaultPrimary})` : ''}`}
+                                </option>
                                 {availableModels.map((model) => (
                                     <option key={model.key} value={model.key}>
                                         {model.name} ({model.key})
                                     </option>
                                 ))}
                             </select>
+                        )}
+                        {agent.id !== 'main' && formData.inheritsDefault && formData.defaultPrimary && (
+                            <p className="mt-1 text-xs text-emerald-600">
+                                This agent currently inherits the workspace default model: {formData.defaultPrimary}
+                            </p>
                         )}
                     </div>
 
