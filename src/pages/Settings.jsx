@@ -2496,6 +2496,9 @@ const ChannelsTab = () => {
                                     className={`rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm ${FOCUS_RING}`}
                                     placeholder="Bot token"
                                 />
+                                <div className="text-xs text-slate-500">
+                                    Paste the BotFather token in the form <span className="font-mono">123456:ABC-DEF...</span>. We validate it before saving.
+                                </div>
                                 <button
                                     type="button"
                                     onClick={() => addChannel({ channel: 'telegram', token: telegramToken })}
