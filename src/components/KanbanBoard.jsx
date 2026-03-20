@@ -547,27 +547,42 @@ const KanbanBoard = () => {
 
                                 {detailsTask && (
                                     <div className="space-y-4">
-                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                            <Field label="ID" value={detailsTask.id} />
-                                            <Field label="Status" value={getTaskStatus(detailsTask) || '—'} />
-                                            <Field label="Assigned Agent" value={detailsTask?.metadata?.assignedAgentId || detailsTask.agentId || '—'} />
-                                            <Field label="Manager" value={detailsTask?.metadata?.managerAgentId || 'main'} />
-                                            <Field label="Priority" value={detailsTask?.metadata?.priority ? `p${detailsTask.metadata.priority}` : '—'} />
-                                            <Field label="Created" value={detailsTask?.metadata?.createdAt || detailsTask?.createdAt || '—'} />
-                                            <Field label="Updated" value={detailsTask?.metadata?.updatedAt || detailsTask?.updatedAt || '—'} />
-                                        </div>
+                                        <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(145deg,_#ffffff_0%,_#f8fafc_100%)] p-4 shadow-sm">
+                                            <div className="flex flex-col gap-4">
+                                                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                                    <div className="min-w-0">
+                                                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                                            Task request
+                                                        </div>
+                                                        <div className="mt-2 text-lg font-semibold leading-7 text-slate-900">
+                                                            {detailsTask?.payload?.message || detailsTask?.metadata?.message || '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${getStatusTone(getTaskStatus(detailsTask))}`}>
+                                                        {formatStatusLabel(getTaskStatus(detailsTask))}
+                                                    </div>
+                                                </div>
 
-                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                            <Field label="Requested Agent" value={detailsTask?.metadata?.requestedAgentId || 'auto-select'} />
-                                            <Field label="Primary Model" value={detailsTask?.model || '—'} />
-                                            <Field label="Required Capabilities" value={(detailsTask?.metadata?.requiredCapabilities || []).join(', ') || '—'} />
-                                            <Field label="Required Apps" value={(detailsTask?.metadata?.requiredApps || []).join(', ') || '—'} />
-                                        </div>
-
-                                        <div>
-                                            <div className="text-xs font-semibold text-gray-700">Message</div>
-                                            <div className="mt-1 whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
-                                                {detailsTask?.payload?.message || detailsTask?.metadata?.message || '—'}
+                                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                                    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                                                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Assigned to</div>
+                                                        <div className="mt-1 text-sm font-semibold text-slate-900 break-words">
+                                                            {detailsTask?.metadata?.assignedAgentId || detailsTask.agentId || '—'}
+                                                        </div>
+                                                    </div>
+                                                    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                                                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Updated</div>
+                                                        <div className="mt-1 text-sm font-semibold text-slate-900 break-words">
+                                                            {formatDetailTimestamp(detailsTask?.metadata?.updatedAt || detailsTask?.updatedAt)}
+                                                        </div>
+                                                    </div>
+                                                    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                                                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Priority</div>
+                                                        <div className="mt-1 text-sm font-semibold text-slate-900 break-words">
+                                                            {detailsTask?.metadata?.priority ? `p${detailsTask.metadata.priority}` : '—'}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -727,79 +742,119 @@ const KanbanBoard = () => {
                                                 </div>
                                             ) : null}
 
-                                        <div>
-                                            <div className="text-xs font-semibold text-gray-700 flex items-center gap-2">
-                                                <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
-                                                Agent timeline
-                                            </div>
-                                            <div className="mt-2 space-y-3 max-h-[400px] overflow-y-auto pr-1">
-                                                {(detailsTask?.metadata?.lastRun?.summary || detailsTask?.metadata?.lastDecision?.reason || (Array.isArray(detailsTask?.metadata?.narrative) && detailsTask.metadata.narrative.length > 0)) ? (
-                                                    <div className="space-y-3">
-                                                        {(detailsTask?.metadata?.lastDecision?.reason || detailsTask?.metadata?.lastRun?.summary) && (
-                                                            <div className="flex flex-col gap-1 rounded-xl bg-blue-600 p-4 shadow-md">
-                                                                <div className="flex items-center justify-between gap-4 border-b border-blue-500/50 pb-2 mb-1">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="h-4 w-4 rounded-full bg-white/20 flex items-center justify-center">
-                                                                            <Cpu className="h-2.5 w-2.5 text-white" />
-                                                                        </div>
-                                                                        <span className="text-[10px] font-extrabold text-white uppercase tracking-widest">
-                                                                            {detailsTask?.agentId || 'AGENT'} DECISION
-                                                                        </span>
-                                                                    </div>
-                                                                    <span className="text-[9px] font-medium text-blue-100 tabular-nums">
-                                                                        {detailsTask?.metadata?.lastDecision?.ts || detailsTask?.metadata?.lastRun?.ts || 'latest'}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="text-sm text-white leading-relaxed font-medium">
-                                                                    {detailsTask?.metadata?.lastDecision?.reason || detailsTask?.metadata?.lastRun?.summary}
-                                                                </div>
-                                                                {detailsTask?.metadata?.lastRun?.error && (
-                                                                    <div className="mt-2 rounded-lg bg-red-900/30 border border-red-500/30 p-2 text-[11px] text-red-100 font-mono">
-                                                                        Error: {String(detailsTask.metadata.lastRun.error)}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
+                                        <details className="group rounded-xl border border-slate-200 bg-white">
+                                            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                                                <div>
+                                                    <div className="text-xs font-semibold text-gray-700">Task metadata</div>
+                                                    <div className="mt-1 text-[11px] text-slate-500">
+                                                        Assignment, timestamps, routing, model, and app requirements
+                                                    </div>
+                                                </div>
+                                                <span className="text-[11px] text-slate-400 transition group-open:rotate-180">⌄</span>
+                                            </summary>
+                                            <div className="space-y-4 border-t border-slate-100 px-4 py-4">
+                                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                    <Field label="ID" value={detailsTask.id} />
+                                                    <Field label="Status" value={getTaskStatus(detailsTask) || '—'} />
+                                                    <Field label="Assigned Agent" value={detailsTask?.metadata?.assignedAgentId || detailsTask.agentId || '—'} />
+                                                    <Field label="Manager" value={detailsTask?.metadata?.managerAgentId || 'main'} />
+                                                    <Field label="Priority" value={detailsTask?.metadata?.priority ? `p${detailsTask.metadata.priority}` : '—'} />
+                                                    <Field label="Created" value={detailsTask?.metadata?.createdAt || detailsTask?.createdAt || '—'} />
+                                                    <Field label="Updated" value={detailsTask?.metadata?.updatedAt || detailsTask?.updatedAt || '—'} />
+                                                </div>
 
-                                                        {buildTaskComments(detailsTask).map((comment) => {
-                                                            const tone = renderCommentTone(comment);
-                                                            return (
-                                                                <div
-                                                                    key={comment.id}
-                                                                    className={`flex flex-col gap-2 rounded-xl border p-4 shadow-sm transition-all ${tone.wrapper}`}
-                                                                >
-                                                                    <div className="flex items-center justify-between gap-4">
+                                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                    <Field label="Requested Agent" value={detailsTask?.metadata?.requestedAgentId || 'auto-select'} />
+                                                    <Field label="Primary Model" value={detailsTask?.model || '—'} />
+                                                    <Field label="Required Capabilities" value={(detailsTask?.metadata?.requiredCapabilities || []).join(', ') || '—'} />
+                                                    <Field label="Required Apps" value={(detailsTask?.metadata?.requiredApps || []).join(', ') || '—'} />
+                                                </div>
+                                            </div>
+                                        </details>
+
+                                        <details className="group rounded-xl border border-slate-200 bg-white">
+                                            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                                                <div className="flex min-w-0 items-center gap-2">
+                                                    <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
+                                                    <div className="min-w-0">
+                                                        <div className="text-xs font-semibold text-gray-700">Agent timeline</div>
+                                                        <div className="mt-1 truncate text-[11px] text-slate-500">
+                                                            {detailsTask?.metadata?.lastDecision?.reason || detailsTask?.metadata?.lastRun?.summary || 'Comments, decisions, and handoffs'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[11px] text-slate-400 transition group-open:rotate-180">⌄</span>
+                                            </summary>
+                                            <div className="border-t border-slate-100 px-4 py-3">
+                                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                                                    {(detailsTask?.metadata?.lastRun?.summary || detailsTask?.metadata?.lastDecision?.reason || (Array.isArray(detailsTask?.metadata?.narrative) && detailsTask.metadata.narrative.length > 0)) ? (
+                                                        <div className="space-y-3">
+                                                            {(detailsTask?.metadata?.lastDecision?.reason || detailsTask?.metadata?.lastRun?.summary) && (
+                                                                <div className="flex flex-col gap-1 rounded-xl bg-blue-600 p-4 shadow-md">
+                                                                    <div className="mb-1 flex items-center justify-between gap-4 border-b border-blue-500/50 pb-2">
                                                                         <div className="flex items-center gap-2">
-                                                                            <div className={`h-5 w-5 rounded-full bg-white/90 flex items-center justify-center ${tone.icon}`}>
-                                                                                <Cpu className="h-3 w-3" />
+                                                                            <div className="flex h-4 w-4 items-center justify-center rounded-full bg-white/20">
+                                                                                <Cpu className="h-2.5 w-2.5 text-white" />
                                                                             </div>
-                                                                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-700">
-                                                                                {comment.agentId}
-                                                                            </span>
-                                                                            <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] ${tone.badge}`}>
-                                                                                {comment.kind === 'coordination' ? 'Inter-agent' : comment.kind}
+                                                                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-white">
+                                                                                {detailsTask?.agentId || 'AGENT'} DECISION
                                                                             </span>
                                                                         </div>
-                                                                        <span className="text-[10px] font-medium text-slate-400 tabular-nums">
-                                                                            {formatDetailTimestamp(comment.ts)}
+                                                                        <span className="text-[9px] font-medium tabular-nums text-blue-100">
+                                                                            {detailsTask?.metadata?.lastDecision?.ts || detailsTask?.metadata?.lastRun?.ts || 'latest'}
                                                                         </span>
                                                                     </div>
-                                                                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-                                                                        {comment.text}
+                                                                    <div className="text-sm font-medium leading-relaxed text-white">
+                                                                        {detailsTask?.metadata?.lastDecision?.reason || detailsTask?.metadata?.lastRun?.summary}
                                                                     </div>
+                                                                    {detailsTask?.metadata?.lastRun?.error && (
+                                                                        <div className="mt-2 rounded-lg border border-red-500/30 bg-red-900/30 p-2 text-[11px] font-mono text-red-100">
+                                                                            Error: {String(detailsTask.metadata.lastRun.error)}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col items-center justify-center py-10 rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
-                                                        <MessageSquare className="w-6 h-6 text-slate-300 mb-2" />
-                                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Awaiting Comments</p>
-                                                        <p className="text-[10px] text-slate-400 mt-1">Agents will post their feedback here.</p>
-                                                    </div>
-                                                )}
+                                                            )}
+
+                                                            {buildTaskComments(detailsTask).map((comment) => {
+                                                                const tone = renderCommentTone(comment);
+                                                                return (
+                                                                    <div
+                                                                        key={comment.id}
+                                                                        className={`flex flex-col gap-2 rounded-xl border p-4 shadow-sm transition-all ${tone.wrapper}`}
+                                                                    >
+                                                                        <div className="flex items-center justify-between gap-4">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className={`flex h-5 w-5 items-center justify-center rounded-full bg-white/90 ${tone.icon}`}>
+                                                                                    <Cpu className="h-3 w-3" />
+                                                                                </div>
+                                                                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-700">
+                                                                                    {comment.agentId}
+                                                                                </span>
+                                                                                <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] ${tone.badge}`}>
+                                                                                    {comment.kind === 'coordination' ? 'Inter-agent' : comment.kind}
+                                                                                </span>
+                                                                            </div>
+                                                                            <span className="text-[10px] font-medium tabular-nums text-slate-400">
+                                                                                {formatDetailTimestamp(comment.ts)}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                                                                            {comment.text}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 py-10">
+                                                            <MessageSquare className="mb-2 h-6 w-6 text-slate-300" />
+                                                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Awaiting Comments</p>
+                                                            <p className="mt-1 text-[10px] text-slate-400">Agents will post their feedback here.</p>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
+                                        </details>
 
                                         {Array.isArray(detailsTask?.metadata?.log) && detailsTask.metadata.log.length > 0 && (
                                             <details className="group rounded-xl border border-slate-200 bg-white">
