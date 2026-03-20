@@ -268,6 +268,33 @@ const KanbanBoard = () => {
     };
 
     const actionableStatus = detailsTask ? getTaskStatus(detailsTask) : '';
+    const currentOperatorGuidance = String(detailsTask?.metadata?.operatorGuidance || '').trim();
+    const actionInputLabel = actionableStatus === 'awaiting_approval'
+        ? 'Approval context'
+        : actionableStatus === 'awaiting_connection'
+            ? 'Resolution input'
+            : actionableStatus === 'blocked'
+                ? 'Resolution input'
+                : actionableStatus === 'failed'
+                    ? 'Retry guidance'
+                    : 'Operator note';
+    const actionInputPlaceholder = actionableStatus === 'awaiting_approval'
+        ? 'Optional context for the approving agent. Example: Approved after reviewing the draft.'
+        : actionableStatus === 'awaiting_connection'
+            ? 'Optional update for the next run. Example: Gmail is connected now. Retry with the same recipient.'
+            : actionableStatus === 'blocked'
+                ? 'Describe what changed so the task can move again. Example: Use agent-2 instead. Slack is no longer required.'
+                : actionableStatus === 'failed'
+                    ? 'Optional guidance for the retry. Example: Use the CSV attached in Notion and skip email.'
+                    : 'Optional note for the task log.';
+    const retryActionLabel = actionableStatus === 'blocked'
+        ? 'Resolve And Retry'
+        : actionableStatus === 'awaiting_connection'
+            ? 'Retry After Connect'
+            : actionableStatus === 'failed'
+                ? 'Retry With Guidance'
+                : 'Retry Task';
+    const blockedRetryNeedsInput = actionableStatus === 'blocked' && !String(detailsActionNote || '').trim();
 
     if (loading) {
         return (
@@ -574,15 +601,25 @@ const KanbanBoard = () => {
 
                                                 <div className="mt-4">
                                                     <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                                                        Operator note
+                                                        {actionInputLabel}
                                                     </label>
                                                     <textarea
                                                         value={detailsActionNote}
                                                         onChange={(event) => setDetailsActionNote(event.target.value)}
                                                         rows={3}
-                                                        placeholder="Optional note for the task log. Example: Approved after reviewing the draft."
+                                                        placeholder={actionInputPlaceholder}
                                                         className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                                                     />
+                                                    {currentOperatorGuidance && (
+                                                        <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-3 text-sm text-sky-900">
+                                                            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-700">
+                                                                Current operator guidance
+                                                            </div>
+                                                            <div className="mt-1 whitespace-pre-wrap">
+                                                                {currentOperatorGuidance}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 <div className="mt-4 flex flex-wrap gap-2">
@@ -610,10 +647,10 @@ const KanbanBoard = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => handleTaskAction('retry')}
-                                                            disabled={detailsLoading || detailsActionLoading}
+                                                            disabled={detailsLoading || detailsActionLoading || blockedRetryNeedsInput}
                                                             className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                                                         >
-                                                            {detailsActionLoading ? 'Working…' : 'Retry Task'}
+                                                            {detailsActionLoading ? 'Working…' : retryActionLabel}
                                                         </button>
                                                     )}
                                                 </div>
